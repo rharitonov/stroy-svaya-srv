@@ -61,7 +61,7 @@ func (s *Service) PrintOutPileDrivingRecord(projectId int) error {
 		row = sheet.AddRow()
 		row.AddCell().Value = ln.PileNumber
 		row.AddCell().Value = ln.StartDate.Format("02.01.2006")
-		row.AddCell().Value = fmt.Sprintf("%2f", ln.FactPileHead)
+		row.AddCell().Value = fmt.Sprintf("%d", ln.FactPileHead)
 		row.AddCell().Value = ln.RecordedBy
 	}
 
@@ -74,4 +74,13 @@ func (s *Service) PrintOutPileDrivingRecord(projectId int) error {
 		panic(err)
 	}
 	return nil
+}
+
+func (s *Service) GetPilesToDriving(projectId int) ([]string, error) {
+
+	piles, err := s.repo.GetPilesToDriving(projectId)
+	if err != nil {
+		return nil, err
+	}
+	return piles, nil
 }

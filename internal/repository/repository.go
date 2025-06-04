@@ -82,6 +82,32 @@ func (r *SQLiteRepository) GetPileDrivingRecord(projectId int) ([]model.PileDriv
 	return lines, nil
 }
 
+func (r *SQLiteRepository) GetPilesToDriving(projectId int) ([]string, error) {
+	var pileNos []string
+	query := `select pif.pile_number from pile_in_field pif
+		left join pile_driving_record pdr 
+			on pdr.pile_field_id = pif.pile_field_id 
+			and pdr.pile_number = pif.pile_number 
+		inner join pile_field pf 
+			on pf.id = pif.pile_field_id 
+		where pdr.pile_number is null 
+			and pf.project_id = ?
+		order by cast(pif.pile_number as int);`
+	rows, err := r.db.Query(query, projectId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pileNo string
+		if err := rows.Scan(&pileNo); err != nil {
+			return nil, err
+		}
+		pileNos = append(pileNos, pileNo)
+	}
+	return pileNos, nil
+}
+
 func (r *SQLiteRepository) Close() error {
 	return r.db.Close()
 }

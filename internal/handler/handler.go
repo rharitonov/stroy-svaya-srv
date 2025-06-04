@@ -87,3 +87,32 @@ func (h *Handler) PrintOutPileDrivingRecord(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 
 }
+
+func (h *Handler) GetPilesToDriving(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	query := r.URL.Query()
+	projectIdTxt := query.Get("project_id")
+	if projectIdTxt == "" {
+		http.Error(w, "Missing project id", http.StatusBadRequest)
+		return
+	}
+	projectId, err := strconv.Atoi(projectIdTxt)
+	if err != nil {
+		http.Error(w, "Missing project id", http.StatusBadRequest)
+		return
+	}
+	piles, err := h.srv.GetPilesToDriving(projectId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(piles); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}

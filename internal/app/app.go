@@ -33,6 +33,7 @@ func New() (*App, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /insertpdrline", a.h.InsertPileDrivingRecordLine)
 	mux.HandleFunc("GET /getpdrlines", a.h.GetPileDrivingRecord)
+	mux.HandleFunc("GET /getpilestodriving", a.h.GetPilesToDriving)
 	mux.HandleFunc("GET /getpdrexcel", a.h.PrintOutPileDrivingRecord)
 	a.srv = &http.Server{
 		Addr:         ":8080",
