@@ -63,7 +63,7 @@ func (h *Handler) GetPileDrivingRecord(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) PrintOutPileDrivingRecord(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SendPileDrivingRecordLog(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -79,7 +79,7 @@ func (h *Handler) PrintOutPileDrivingRecord(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Missing project id", http.StatusBadRequest)
 		return
 	}
-	if err := h.srv.PrintOutPileDrivingRecord(projectId); err != nil {
+	if err := h.srv.SendPileDrivingRecordLog(projectId); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

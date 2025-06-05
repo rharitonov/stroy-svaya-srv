@@ -2,11 +2,16 @@ package service
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strconv"
 	"stroy-svaya/internal/model"
 	"stroy-svaya/internal/repository"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/tealeg/xlsx"
+	"gopkg.in/gomail.v2"
 )
 
 type Service struct {
@@ -39,11 +44,24 @@ func (s *Service) GetPileDrivingRecord(projectId int) ([]model.PileDrivingRecord
 	return lines, nil
 }
 
-func (s *Service) PrintOutPileDrivingRecord(projectId int) error {
+func (s *Service) SendPileDrivingRecordLog(projectId int) error {
+	filename, err := s.SavePileDrivingRecordLogToExcel(projectId)
+	if err != nil {
+		return err
+	}
+
+	if err := s.SendMail(filename); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Service) SavePileDrivingRecordLogToExcel(projectId int) (string, error) {
 	var lines []model.PileDrivingRecordLine
 	lines, err := s.GetPileDrivingRecord(projectId)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	file := xlsx.NewFile()
@@ -72,6 +90,38 @@ func (s *Service) PrintOutPileDrivingRecord(projectId int) error {
 	err = file.Save(filename)
 	if err != nil {
 		panic(err)
+	}
+	return filename, nil
+}
+
+func (s *Service) SendMail(filename string) error {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file")
+	}
+	mail_to := os.Getenv("MAIL_TO")
+	mail_sender := os.Getenv("MAIL_SENDER")
+	mail_sender_password := os.Getenv("MAIL_SENDER_PASSWORD")
+	mail_sender_host := os.Getenv("MAIL_SENDER_HOST")
+	mail_sender_port, err := strconv.Atoi(os.Getenv("MAIL_SENDER_PORT")) // для SSL (обычно 465 или 587)
+	if err != nil {
+		return err
+	}
+
+	subject := "Данные Журнала забивки из ТГ"
+	body := "см. вложение"
+	m := gomail.NewMessage()
+	m.SetHeader("From", mail_sender)
+	m.SetHeader("To", mail_to)
+	m.SetHeader("Subject", subject)
+	m.SetHeader("Content-Type", "text/plain; charset=utf-8")
+	m.SetBody("text/plain", body)
+	if filename != "" {
+		m.Attach(filename)
+	}
+	d := gomail.NewDialer(mail_sender_host, mail_sender_port, mail_sender, mail_sender_password)
+	d.SSL = true // Яндекс требует SSL
+	if err := d.DialAndSend(m); err != nil {
+		return err
 	}
 	return nil
 }
