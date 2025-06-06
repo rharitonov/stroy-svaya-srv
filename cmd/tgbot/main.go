@@ -74,13 +74,17 @@ func main() {
 			sendMessage(chatID, "Добро пожаловать в журнал забивки свай!\n\n"+
 				"Используйте команды:\n"+
 				"/newrecord - начать новую запись\n"+
+				"/getexcel - отправить excel файл на почту\n"+
 				"/help - помощь")
 		case "/help":
 			sendMessage(chatID, "Команды бота:\n"+
 				"/newrecord - начать новую запись о забивке сваи\n"+
+				"/getexcel - отправить excel файл на почту\n"+
 				"/help - показать эту справку")
 		case "/newrecord":
 			startNewRecord(chatID, state)
+		case "/getexcel":
+			sendPileDrivingLog(chatID)
 		default:
 			processUserInput(chatID, state, text)
 		}
@@ -97,6 +101,16 @@ func startNewRecord(chatID int64, state *UserState) {
 	}
 	state.WaitingFor = "pileNumber"
 	showPileGroups(chatID, state, state.AvailablePiles)
+}
+
+func sendPileDrivingLog(chatID int64) {
+	url := fmt.Sprintf("%s/sendpdrlog?project_id=1", WebServiceURL)
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	defer resp.Body.Close()
+	sendMessage(chatID, "Excel файл отправлен.")
 }
 
 func getPilesToDriving() []string {

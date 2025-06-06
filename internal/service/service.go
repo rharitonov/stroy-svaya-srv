@@ -1,10 +1,9 @@
 package service
 
 import (
+	"encoding/base64"
 	"fmt"
-	"log"
 	"os"
-	"strconv"
 	"stroy-svaya/internal/model"
 	"stroy-svaya/internal/repository"
 	"time"
@@ -24,7 +23,7 @@ func NewService(r *repository.SQLiteRepository) *Service {
 
 func (s *Service) InitPileDrivingRecordLine() *model.PileDrivingRecordLine {
 	return &model.PileDrivingRecordLine{
-		RecordedBy: "Сатья Надела",
+		RecordedBy: "Фамилия Имя Отчество",
 	}
 }
 
@@ -84,7 +83,7 @@ func (s *Service) SavePileDrivingRecordLogToExcel(projectId int) (string, error)
 	}
 
 	printoutDate := time.Now()
-	filename := fmt.Sprintf("./printout/p%d_журнал-забивки-свай-от_%s.xlsx",
+	filename := fmt.Sprintf("./reports/p%d_журнал-забивки-свай-от_%s.xlsx",
 		projectId,
 		printoutDate.Format("2006-01-02_15-04-05"))
 	err = file.Save(filename)
@@ -96,33 +95,39 @@ func (s *Service) SavePileDrivingRecordLogToExcel(projectId int) (string, error)
 
 func (s *Service) SendMail(filename string) error {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
-	}
-	mail_to := os.Getenv("MAIL_TO")
-	mail_sender := os.Getenv("MAIL_SENDER")
-	mail_sender_password := os.Getenv("MAIL_SENDER_PASSWORD")
-	mail_sender_host := os.Getenv("MAIL_SENDER_HOST")
-	mail_sender_port, err := strconv.Atoi(os.Getenv("MAIL_SENDER_PORT")) // для SSL (обычно 465 или 587)
-	if err != nil {
-		return err
+		return fmt.Errorf("failed to load .env file: %w", err)
 	}
 
-	subject := "Данные Журнала забивки из ТГ"
-	body := "см. вложение"
+	sender := os.Getenv("MAIL_SENDER")
+	password := os.Getenv("MAIL_SENDER_PASSWORD")
+	to := os.Getenv("MAIL_TO")
+	cc := os.Getenv("MAIL_COPY")
+
+	if sender == "" || password == "" || to == "" {
+		return fmt.Errorf("missing required environment variables")
+	}
+
 	m := gomail.NewMessage()
-	m.SetHeader("From", mail_sender)
-	m.SetHeader("To", mail_to)
-	m.SetHeader("Subject", subject)
-	m.SetHeader("Content-Type", "text/plain; charset=utf-8")
-	m.SetBody("text/plain", body)
+	m.SetHeader("From", sender)
+	m.SetHeader("To", to)
+	if cc != "" {
+		m.SetHeader("Cc", cc)
+	}
+	m.SetHeader("Subject", "=?UTF-8?B?"+base64.StdEncoding.EncodeToString([]byte("Журнал забивки свай"))+"?=")
+	m.SetBody("text/plain", "см. вложение")
+
 	if filename != "" {
 		m.Attach(filename)
+		defer os.Remove(filename)
 	}
-	d := gomail.NewDialer(mail_sender_host, mail_sender_port, mail_sender, mail_sender_password)
-	d.SSL = true // Яндекс требует SSL
+
+	d := gomail.NewDialer("smtp.yandex.ru", 465, sender, password)
+	d.SSL = true
+
 	if err := d.DialAndSend(m); err != nil {
-		return err
+		return fmt.Errorf("failed to send email: %w", err)
 	}
+
 	return nil
 }
 
