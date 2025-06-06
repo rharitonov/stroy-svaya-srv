@@ -74,12 +74,12 @@ func main() {
 			sendMessage(chatID, "Добро пожаловать в журнал забивки свай!\n\n"+
 				"Используйте команды:\n"+
 				"/newrecord - начать новую запись\n"+
-				"/getexcel - отправить excel файл на почту\n"+
+				"/sendexcel - отправить excel c данными на рабочую почту\n"+
 				"/help - помощь")
 		case "/help":
 			sendMessage(chatID, "Команды бота:\n"+
 				"/newrecord - начать новую запись о забивке сваи\n"+
-				"/getexcel - отправить excel файл на почту\n"+
+				"/getexcel - отправить excel c данными на рабочую почту\n"+
 				"/help - показать эту справку")
 		case "/newrecord":
 			startNewRecord(chatID, state)
