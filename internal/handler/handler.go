@@ -116,3 +116,32 @@ func (h *Handler) GetPilesToDriving(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+
+func (h *Handler) GetUserFullNameInitialFormat(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	query := r.URL.Query()
+	tgChatIdTxt := query.Get("tg_chat_id")
+	if tgChatIdTxt == "" {
+		http.Error(w, "Missing tg chat id", http.StatusBadRequest)
+		return
+	}
+	tgChatId, err := strconv.ParseInt(tgChatIdTxt, 10, 64)
+	if err != nil {
+		http.Error(w, "Incorrect tg chat id value", http.StatusBadRequest)
+		return
+	}
+
+	userName, err := h.srv.GetUserFullNameInitialFormat(tgChatId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(userName); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}

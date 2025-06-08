@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
 	"stroy-svaya/internal/model"
 
 	_ "modernc.org/sqlite"
@@ -106,6 +107,28 @@ func (r *SQLiteRepository) GetPilesToDriving(projectId int) ([]string, error) {
 		pileNos = append(pileNos, pileNo)
 	}
 	return pileNos, nil
+}
+
+func (r *SQLiteRepository) GetUserFullNameInitialFormat(tgChatId int64) (string, error) {
+	var lastName, initials string
+	query := `select last_name, initials 
+		from user_setup 
+		where tg_user_id = ?
+		limit 1;`
+	rows, err := r.db.Query(query, tgChatId)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		if err := rows.Scan(&lastName, &initials); err != nil {
+			return "", err
+		}
+	}
+	if lastName == "" {
+		return "", nil
+	}
+	return fmt.Sprintf("%s %s", lastName, initials), nil
 }
 
 func (r *SQLiteRepository) Close() error {

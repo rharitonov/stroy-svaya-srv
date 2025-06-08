@@ -20,6 +20,10 @@ const (
 	WebServiceURL = "http://localhost:8080"
 	DateFormat    = "02.01.2006"
 	GroupsCount   = 6
+	HelpTxt       = "Используйте команды:\n" +
+		"/newrecord - начать новую запись\n" +
+		"/sendexcel - отправить excel c данными на рабочую почту\n" +
+		"/help - помощь"
 )
 
 type UserState struct {
@@ -63,6 +67,15 @@ func main() {
 		chatID := update.Message.Chat.ID
 		text := update.Message.Text
 
+		userName := fmt.Sprintf("%s %s",
+			update.Message.From.FirstName,
+			update.Message.From.LastName)
+		//log.Printf("############## from: %s", userName)
+		userName = getUserFullName(chatID, userName)
+		//log.Printf("############## getUserFullName(): %s", userName)
+		//log.Printf("############## update.Message.Chat: %s",
+		//	fmt.Sprintf("%s %s", update.Message.Chat.FirstName, update.Message.Chat.LastName))
+
 		if _, ok := userStates[chatID]; !ok {
 			userStates[chatID] = &UserState{}
 		}
@@ -71,28 +84,26 @@ func main() {
 
 		switch text {
 		case "/start":
-			sendMessage(chatID, "Добро пожаловать в журнал забивки свай!\n\n"+
-				"Используйте команды:\n"+
-				"/newrecord - начать новую запись\n"+
-				"/sendexcel - отправить excel c данными на рабочую почту\n"+
-				"/help - помощь")
+			sendMessage(chatID, "Добро пожаловать в журнал забивки свай!\n\n"+HelpTxt)
 		case "/help":
-			sendMessage(chatID, "Команды бота:\n"+
-				"/newrecord - начать новую запись о забивке сваи\n"+
-				"/getexcel - отправить excel c данными на рабочую почту\n"+
-				"/help - показать эту справку")
+			sendMessage(chatID, HelpTxt)
 		case "/newrecord":
-			startNewRecord(chatID, state)
-		case "/getexcel":
-			sendPileDrivingLog(chatID)
+			startNewRecord(chatID, userName, state)
+		case "/sendexcel":
+			sendPileDrivingLog(chatID, state)
 		default:
 			processUserInput(chatID, state, text)
 		}
 	}
 }
 
-func startNewRecord(chatID int64, state *UserState) {
-	state.CurrentRecord = model.PileDrivingRecordLine{ProjectId: 1, PileFieldId: 1}
+func startNewRecord(chatID int64, userName string, state *UserState) {
+	state.CurrentRecord = model.PileDrivingRecordLine{
+		ProjectId:   1,
+		PileFieldId: 1,
+		RecordedBy:  userName,
+	}
+	log.Printf("----------- %s", state.CurrentRecord.RecordedBy) //dbg
 	state.SelectionHistory = [][]string{}
 	state.AvailablePiles = getPilesToDriving()
 	if len(state.AvailablePiles) == 0 {
@@ -103,14 +114,20 @@ func startNewRecord(chatID int64, state *UserState) {
 	showPileGroups(chatID, state, state.AvailablePiles)
 }
 
-func sendPileDrivingLog(chatID int64) {
+func sendPileDrivingLog(chatID int64, state *UserState) {
 	url := fmt.Sprintf("%s/sendpdrlog?project_id=1", WebServiceURL)
+	log.Print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 	defer resp.Body.Close()
 	sendMessage(chatID, "Excel файл отправлен.")
+
+	// Сбрасываем состояние пользователя
+	state.WaitingFor = ""
+	state.SelectionHistory = [][]string{}
+	sendMessage(chatID, HelpTxt)
 }
 
 func getPilesToDriving() []string {
@@ -129,6 +146,27 @@ func getPilesToDriving() []string {
 		log.Fatal(err.Error())
 	}
 	return piles
+}
+
+func getUserFullName(chatId int64, defaultUserName string) string {
+	url := fmt.Sprintf("%s/getuserfullname?tg_chat_id=%d", WebServiceURL, chatId)
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	var userName string
+	if err := json.Unmarshal(body, &userName); err != nil {
+		log.Fatal(err.Error())
+	}
+	if userName == "" {
+		userName = defaultUserName
+	}
+	return userName
 }
 
 func showPileGroups(chatID int64, state *UserState, piles []string) {
@@ -214,10 +252,8 @@ func processUserInput(chatID int64, state *UserState, text string) {
 		handleDrivingDateSelection(chatID, state, text)
 	case "pileTopLevel":
 		handlePileTopLevelInput(chatID, state, text)
-	case "operatorName":
-		handleOperatorNameInput(chatID, state, text)
 	default:
-		sendMessage(chatID, "Используйте /newrecord для начала новой записи или /help для справки.")
+		sendMessage(chatID, HelpTxt)
 	}
 }
 
@@ -303,26 +339,17 @@ func handleDrivingDateSelection(chatID int64, state *UserState, text string) {
 
 	state.CurrentRecord.StartDate = selectedDate
 	state.WaitingFor = "pileTopLevel"
-	sendMessage(chatID, fmt.Sprintf("Выбрана дата: %s\nВведите отметку верха головы сваи (в милиметрах, например, 12750):",
+	sendMessage(chatID, fmt.Sprintf("Выбрана дата: %s\nВведите отметку верха головы сваи (в милиметрах, например, 10750):",
 		selectedDate.Format(DateFormat)))
 }
 
 func handlePileTopLevelInput(chatID int64, state *UserState, text string) {
 	factPileHead, err := parseInt(text)
 	if err != nil {
-		sendMessage(chatID, "Неверный формат числа. Пожалуйста, введите отметку в милиметрах (например, 12750):")
+		sendMessage(chatID, "Неверный формат числа. Пожалуйста, введите отметку в милиметрах (например, 10750):")
 		return
 	}
 	state.CurrentRecord.FactPileHead = factPileHead
-	state.WaitingFor = "operatorName"
-	sendMessage(chatID, "Введите имя оператора (или /skip чтобы пропустить):")
-}
-
-func handleOperatorNameInput(chatID int64, state *UserState, text string) {
-	if text != "/skip" {
-		state.CurrentRecord.RecordedBy = text
-	}
-
 	sendDataToWebService(chatID, state)
 }
 
@@ -345,21 +372,6 @@ func sendDataToWebService(chatID int64, state *UserState) {
 	msg := tgbotapi.NewMessage(chatID, "")
 	msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
 
-	// dbg
-	/*
-		msg.Text = fmt.Sprint(state.CurrentRecord)
-		_, err = bot.Send(msg)
-		if err != nil {
-			log.Println("Ошибка при отправке сообщения:", err)
-		}
-		msg.Text = string(jsonData)
-		_, err = bot.Send(msg)
-		if err != nil {
-			log.Println("Ошибка при отправке сообщения:", err)
-		}
-	*/
-	// dbg
-
 	if resp.StatusCode == http.StatusCreated {
 		msg.Text = "Данные успешно отправлены!\n\n" +
 			"Номер сваи: " + state.CurrentRecord.PileNumber + "\n" +
@@ -377,6 +389,7 @@ func sendDataToWebService(chatID int64, state *UserState) {
 	// Сбрасываем состояние пользователя
 	state.WaitingFor = ""
 	state.SelectionHistory = [][]string{}
+	sendMessage(chatID, HelpTxt)
 }
 
 func sendMessage(chatID int64, text string) {

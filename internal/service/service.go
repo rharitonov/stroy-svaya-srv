@@ -139,3 +139,11 @@ func (s *Service) GetPilesToDriving(projectId int) ([]string, error) {
 	}
 	return piles, nil
 }
+
+func (s *Service) GetUserFullNameInitialFormat(tgChatId int64) (string, error) {
+	userName, err := s.repo.GetUserFullNameInitialFormat(tgChatId)
+	if err != nil {
+		return "", err
+	}
+	return userName, nil
+}
