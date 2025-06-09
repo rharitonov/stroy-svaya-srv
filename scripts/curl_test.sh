@@ -14,4 +14,4 @@ curl -X POST http://localhost:8080/insertpdrline \
  curl http://localhost:8080/getpdrexcel?project_id=1
  curl http://localhost:8080/getpilestodriving?project_id=1
  curl http://localhost:8080/sendpdrlog?project_id=1
- curl http://localhost:8080/getuserfullname?tg_chat_id=204729745
+ curl http://localhost:8080/getuserfullname?tg_chat_id=?

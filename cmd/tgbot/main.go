@@ -70,11 +70,7 @@ func main() {
 		userName := fmt.Sprintf("%s %s",
 			update.Message.From.FirstName,
 			update.Message.From.LastName)
-		//log.Printf("############## from: %s", userName)
 		userName = getUserFullName(chatID, userName)
-		//log.Printf("############## getUserFullName(): %s", userName)
-		//log.Printf("############## update.Message.Chat: %s",
-		//	fmt.Sprintf("%s %s", update.Message.Chat.FirstName, update.Message.Chat.LastName))
 
 		if _, ok := userStates[chatID]; !ok {
 			userStates[chatID] = &UserState{}
@@ -103,7 +99,6 @@ func startNewRecord(chatID int64, userName string, state *UserState) {
 		PileFieldId: 1,
 		RecordedBy:  userName,
 	}
-	log.Printf("----------- %s", state.CurrentRecord.RecordedBy) //dbg
 	state.SelectionHistory = [][]string{}
 	state.AvailablePiles = getPilesToDriving()
 	if len(state.AvailablePiles) == 0 {
@@ -116,15 +111,12 @@ func startNewRecord(chatID int64, userName string, state *UserState) {
 
 func sendPileDrivingLog(chatID int64, state *UserState) {
 	url := fmt.Sprintf("%s/sendpdrlog?project_id=1", WebServiceURL)
-	log.Print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 	defer resp.Body.Close()
 	sendMessage(chatID, "Excel файл отправлен.")
-
-	// Сбрасываем состояние пользователя
 	state.WaitingFor = ""
 	state.SelectionHistory = [][]string{}
 	sendMessage(chatID, HelpTxt)
