@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/base64"
 	"fmt"
+	"log"
 	"os"
 	"stroy-svaya/internal/model"
 	"stroy-svaya/internal/repository"
@@ -101,7 +102,7 @@ func (s *Service) SendMail(filename string) error {
 	sender := os.Getenv("MAIL_SENDER")
 	password := os.Getenv("MAIL_SENDER_PASSWORD")
 	to := os.Getenv("MAIL_TO")
-	cc := os.Getenv("MAIL_COPY")
+	cc := os.Getenv("MAIL_CC")
 
 	if sender == "" || password == "" || to == "" {
 		return fmt.Errorf("missing required environment variables")
@@ -128,6 +129,7 @@ func (s *Service) SendMail(filename string) error {
 		return fmt.Errorf("failed to send email: %w", err)
 	}
 
+	log.Printf("Excel file %s sent, To %s, Cc %s", filename, to, cc)
 	return nil
 }
 
