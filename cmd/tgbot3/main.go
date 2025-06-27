@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 	"stroy-svaya/internal/model"
-	dynmenu "stroy-svaya/internal/tgbot/bot"
+	dynmenu "stroy-svaya/internal/tgbot/botmenu"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"

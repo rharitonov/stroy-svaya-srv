@@ -1,4 +1,4 @@
-package dynmenu
+package botmenu
 
 import (
 	"errors"
@@ -8,6 +8,28 @@ import (
 	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
+
+// type MenuState string
+
+// const (
+// 	PilesAll             MenuState = "PilesAll"
+// 	PilesNew             MenuState = "PilesNew"
+// 	PilesNoFPH           MenuState = "PilesNoFPH"
+// 	PilesLoggedYesterday MenuState = "PilesLoggedYesterday"
+// 	PilesLoggedToday     MenuState = "PilesLoggedToday"
+// 	PilesSendExcel       MenuState = "PilesSendExcel"
+// 	PileSelection        MenuState = "PileSelection"
+// )
+
+const (
+	PilesAll             = "PilesAll"
+	PilesNew             = "PilesNew"
+	PilesNoFPH           = "PilesNoFPH"
+	PilesLoggedYesterday = "PilesLoggedYesterday"
+	PilesLoggedToday     = "PilesLoggedToday"
+	PilesSendExcel       = "PilesSendExcel"
+	PileSelection        = "PileSelection"
 )
 
 const (
