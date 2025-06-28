@@ -114,25 +114,29 @@ func (b *TgBot) showPileSelectionMenu(chatID int64, mode string) {
 	filter := model.PileFilter{}
 	filter.ProjectId = rec.ProjectId
 	filter.PileFieldId = rec.PileFieldId
+	filter.RecordedBy = new(string)
 	*filter.RecordedBy = rec.RecordedBy
 	switch mode {
 	case bm.PilesAll:
-		filter.Status = 20
+		filter.Status = 30
 	case bm.PilesNew:
 		filter.Status = 10
 	case bm.PilesNoFPH:
+		filter.FactPileHead = new(int)
 		*filter.FactPileHead = 0
 		filter.Status = 20
 	case bm.PilesLoggedToday:
 		now := time.Now()
+		filter.StartDate = new(time.Time)
 		*filter.StartDate = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 		filter.Status = 20
 	case bm.PilesLoggedYesterday:
 		now := time.Now()
+		filter.StartDate = new(time.Time)
 		*filter.StartDate = time.Date(now.Year(), now.Month(), now.Day()-1, 0, 0, 0, 0, time.UTC)
 		filter.Status = 20
 	}
-	piles, err := b.ws.GetPiles(filter, mode)
+	piles, err := b.ws.GetPiles(filter)
 	if err != nil {
 		log.Println(err)
 	}

@@ -2,10 +2,16 @@ package repository
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"stroy-svaya/internal/model"
+	"time"
 
 	_ "modernc.org/sqlite"
+)
+
+const (
+	dateFormat = "2006-01-02"
 )
 
 type Repository interface {
@@ -37,7 +43,7 @@ func (r *SQLiteRepository) InsertPileDrivingRecordLine(rec *model.PileDrivingRec
 				pile_field_id,
 				pile_number,
 				project_id,
-				start_time,
+				start_date,
 				fact_pile_head,
 				recorded_by
 			)
@@ -46,7 +52,7 @@ func (r *SQLiteRepository) InsertPileDrivingRecordLine(rec *model.PileDrivingRec
 		rec.PileFieldId,
 		rec.PileNumber,
 		rec.ProjectId,
-		rec.StartDate,
+		rec.StartDate.Format(dateFormat),
 		rec.FactPileHead,
 		rec.RecordedBy,
 	)
@@ -58,7 +64,7 @@ func (r *SQLiteRepository) GetPileDrivingRecord(projectId int) ([]model.PileDriv
 	var lines []model.PileDrivingRecordLine
 	query := `SELECT 
 				pile_number,
-				start_time,
+				start_date,
 				fact_pile_head,
 				recorded_by
 			FROM pile_driving_record
@@ -95,6 +101,95 @@ func (r *SQLiteRepository) GetPilesToDriving(projectId int) ([]string, error) {
 			and pf.project_id = ?
 		order by cast(pif.pile_number as int);`
 	rows, err := r.db.Query(query, projectId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var pileNo string
+		if err := rows.Scan(&pileNo); err != nil {
+			return nil, err
+		}
+		pileNos = append(pileNos, pileNo)
+	}
+	return pileNos, nil
+}
+
+func (r *SQLiteRepository) GetPiles(filter model.PileFilter) ([]string, error) {
+	var pileNos []string
+	var args []any
+	var query string
+	switch filter.Status {
+	case 10:
+		query = `select pif.pile_number from pile_in_field pif
+			left join pile_driving_record pdr 
+				on pdr.pile_field_id = pif.pile_field_id 
+				and pdr.pile_number = pif.pile_number 
+			inner join pile_field pf 
+				on pf.id = pif.pile_field_id 
+			where pdr.pile_number is null 
+				and pf.project_id = ?
+			order by cast(pif.pile_number as int);`
+		args = append(args, filter.ProjectId)
+	case 30:
+		query = `select pif.pile_number from pile_in_field pif
+			inner join pile_field pf 
+				on pf.id = pif.pile_field_id 
+			where pf.project_id = ?
+			order by cast(pif.pile_number as int);`
+		args = append(args, filter.ProjectId)
+	case 20:
+		query = `select pif.pile_number from pile_in_field pif
+			inner join pile_driving_record pdr 
+				on pdr.pile_field_id = pif.pile_field_id 
+				and pdr.pile_number = pif.pile_number 
+			inner join pile_field pf 
+				on pf.id = pif.pile_field_id 
+			%s
+			order by cast(pif.pile_number as int);`
+		var fields map[string]any
+		var where string
+		jsonData, err := json.Marshal(filter)
+		if err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal([]byte(jsonData), &fields); err != nil {
+			return nil, err
+		}
+
+		for field, value := range fields {
+			//log.Println(field, value) // DBG
+			if field != "status" && field != "recorded_by" {
+				if where == "" {
+					where = "where "
+				} else {
+					where = where + " and "
+				}
+				isDate := false
+				var v any = value
+				switch v.(type) {
+				case string:
+					_, err := time.Parse(time.RFC3339, value.(string))
+					if err == nil {
+						isDate = true
+					}
+				default:
+					isDate = false
+				}
+				if isDate {
+					date, _ := time.Parse(time.RFC3339, value.(string))
+					where = fmt.Sprintf("%spdr.%s = ?", where, field)
+					args = append(args, date.Format(dateFormat))
+				} else {
+					where = fmt.Sprintf("%spdr.%s = ?", where, field)
+					args = append(args, value)
+				}
+			}
+		}
+		query = fmt.Sprintf(query, where)
+	}
+	//log.Println(query) //DBG
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

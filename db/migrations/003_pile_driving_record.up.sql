@@ -4,8 +4,8 @@ CREATE TABLE IF NOT EXISTS pile_driving_record (
     pile_field_id INTEGER NOT NULL,
     pile_number TEXT NOT NULL,                      -- Номер сваи
     project_id INTEGER NOT NULL,                    -- ID проекта
-    start_time DATETIME NOT NULL,                   -- Время начала забивки
-    end_time DATETIME,                              -- Время окончания забивки
+    start_date DATE NOT NULL,                   -- Дата начала забивки
+    end_date DATE,                              -- Дата окончания забивки
     fact_pile_head INTEGER                          -- Абс. отметка верха головы сваи, факт, мм
     blows_count INTEGER,                            -- Количество ударов
     recorded_by INTEGER NOT NULL,                   -- ID оператора/инженера
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS pile_driving_record (
 
 CREATE INDEX IF NOT EXISTS idx_pile_driving_pile_number ON pile_driving_record(pile_number);
 CREATE INDEX IF NOT EXISTS idx_pile_driving_project ON pile_driving_record(project_id);
-CREATE INDEX IF NOT EXISTS idx_pile_driving_times ON pile_driving_record(start_time, end_time);
+CREATE INDEX IF NOT EXISTS idx_pile_driving_times ON pile_driving_record(start_date, end_date);
 
 -- Триггер для автоматического обновления поля updated_at
 CREATE TRIGGER IF NOT EXISTS update_pile_driving_timestamp

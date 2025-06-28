@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"stroy-svaya/internal/model"
 )
 
@@ -21,9 +22,12 @@ func NewWebService(baseUrl string) *WebService {
 	return &WebService{BaseUrl: baseUrl}
 }
 
-func (w *WebService) GetPiles(filter model.PileFilter, mode string) ([]string, error) {
-	projectId := 0
-	url := fmt.Sprintf("%s/getpilestodriving?project_id=%d", w.BaseUrl, projectId)
+func (w *WebService) GetPiles(filter model.PileFilter) ([]string, error) {
+	values, err := w.getUrlValues(filter)
+	if err != nil {
+		return nil, err
+	}
+	url := fmt.Sprintf("%s/getpiles?%s", w.BaseUrl, values)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -86,4 +90,27 @@ func (w *WebService) SendData(rec *model.PileDrivingRecordLine) error {
 		return errors.New(resp.Status)
 	}
 	return nil
+}
+
+func (w *WebService) getUrlValues(filter model.PileFilter) (string, error) {
+	jsonStr, err := json.Marshal(filter)
+	if err != nil {
+		return "", err
+	}
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &data); err != nil {
+		return "", nil
+	}
+	values := url.Values{}
+	for key, val := range data {
+		switch v := val.(type) {
+		case string:
+			values.Add(key, v)
+		case bool:
+			values.Add(key, fmt.Sprintf("%t", v))
+		default:
+			values.Add(key, fmt.Sprintf("%v", v))
+		}
+	}
+	return values.Encode(), nil
 }

@@ -117,6 +117,34 @@ func (h *Handler) GetPilesToDriving(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func (h *Handler) GetPiles(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var filter model.PileFilter
+	query := r.URL.Query()
+	jsonQuery, err := json.Marshal(query)
+	if err != nil {
+		http.Error(w, "", http.StatusBadRequest)
+		return
+	}
+	if err := json.Unmarshal([]byte(jsonQuery), &filter); err != nil {
+		http.Error(w, "", http.StatusBadRequest)
+		return
+	}
+	piles, err := h.srv.GetPiles(filter)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(piles); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (h *Handler) GetUserFullNameInitialFormat(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

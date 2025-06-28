@@ -3,8 +3,8 @@ curl -X POST http://localhost:8080/insertpdrline \
   -d '{
     "project_id": 1,
 	"pile_field_id": 1,
-    "pile_number": "399",
-    "start_date": "2025-04-05T14:30:00Z",
+    "pile_number": "300",
+    "start_date": "2025-06-28T14:30:00Z",
     "fact_pile_head": 10750,
 	"recorded_by": "Иванов Иван Иванович"
   }'
