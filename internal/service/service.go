@@ -134,7 +134,6 @@ func (s *Service) SendMail(filename string) error {
 }
 
 func (s *Service) GetPilesToDriving(projectId int) ([]string, error) {
-
 	piles, err := s.repo.GetPilesToDriving(projectId)
 	if err != nil {
 		return nil, err

@@ -3,19 +3,16 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"stroy-svaya/internal/config"
 	"stroy-svaya/internal/model"
-	"stroy-svaya/internal/repository"
-	"stroy-svaya/internal/service"
 	bm "stroy-svaya/internal/tgbot/botmenu"
+	"stroy-svaya/internal/tgbot/webservice"
 	"time"
 )
 
 func main() {
-	c := config.Load()
-	r, _ := repository.NewSQLiteRepository(c.DatabasePath)
-	s := service.NewService(r)
+	//c := config.Load()
+	//r, _ := repository.NewSQLiteRepository(c.DatabasePath)
+	//s := service.NewService(r)
 
 	filter := model.PileFilter{}
 	filter.ProjectId = 1
@@ -23,10 +20,11 @@ func main() {
 	filter.RecordedBy = new(string)
 	*filter.RecordedBy = "Вася"
 
-	if len(os.Args) != 2 {
-		log.Fatal("mode reqiured")
-	}
-	mode := os.Args[1]
+	mode := bm.PilesAll
+	// if len(os.Args) != 2 {
+	// 	//log.Fatal("mode reqiured")
+	// }
+	// mode := os.Args[1]
 	switch mode {
 	case bm.PilesAll:
 		filter.Status = 30
@@ -51,9 +49,15 @@ func main() {
 	default:
 		log.Fatal("incorrect mode value")
 	}
-	piles, err := s.GetPiles(filter)
+
+	w := webservice.NewWebService("")
+	piles, err := w.GetPiles(filter)
+	//piles, err := s.GetPiles(filter)
 	if err != nil {
 		log.Panic(err)
+	}
+	if len(piles) == 0 {
+		log.Panic("Отсутствуют сваи заданным критериям")
 	}
 
 	fmt.Printf("for %s:\n%v\n\n", mode, piles)

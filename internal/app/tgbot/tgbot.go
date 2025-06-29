@@ -27,8 +27,10 @@ type TgBot struct {
 }
 
 func NewTgBot() *TgBot {
-	ws := webservice.NewWebService("")
-	return &TgBot{ws: ws}
+	tb := &TgBot{}
+	tb.ws = webservice.NewWebService("")
+	tb.userStates = make(map[int64]*UserState)
+	return tb
 }
 
 func (b *TgBot) Run() error {
@@ -51,37 +53,21 @@ func (b *TgBot) Run() error {
 	updates := b.bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		if update.Message == nil {
+		switch true {
+		case update.Message != nil:
+			chatID := update.Message.Chat.ID
+			text := update.Message.Text
+			b.getUserState(chatID, update.Message.From)
+			b.processCommand(chatID, text)
+		case update.CallbackQuery != nil:
+			chatID := update.CallbackQuery.Message.Chat.ID
+			data := update.CallbackQuery.Data
+			b.getUserState(chatID, update.CallbackQuery.Message.From)
+			b.processCallbackQuery(chatID, data)
+		default:
 			continue
 		}
-
-		chatID := update.Message.Chat.ID
-		text := update.Message.Text
-
-		msg := tgbotapi.NewMessage(chatID, "")
-		msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-
-		if _, ok := b.userStates[chatID]; !ok {
-			b.userStates[chatID] = &UserState{}
-		}
-		if b.userStates[chatID].userName == "" {
-			userName := fmt.Sprintf("%s %s",
-				update.Message.From.FirstName,
-				update.Message.From.LastName)
-			b.userStates[chatID].userName, err = b.ws.GetUserFullName(chatID, userName)
-			if err != nil {
-				log.Println(err)
-			}
-		}
-
-		switch text {
-		case "/start":
-			b.showPilesMenu(chatID)
-		default:
-			b.processUserInput(chatID, text)
-		}
 	}
-
 	return nil
 }
 
@@ -103,12 +89,12 @@ func (b *TgBot) showPilesMenu(chatID int64) {
 	b.newInlineKb(chatID, &kb, "Добро пожаловать в журнал забивки свай!\n")
 }
 
-func (b *TgBot) showPileSelectionMenu(chatID int64, mode string) {
-	usr := b.userStates[chatID]
+func (b *TgBot) startPileSelection(chatID int64, mode string) {
+	b.userStates[chatID].waitingFor = ""
 	rec := model.PileDrivingRecordLine{}
 	rec.ProjectId = 1
 	rec.PileFieldId = 1
-	rec.RecordedBy = usr.userName
+	rec.RecordedBy = b.userStates[chatID].userName
 
 	b.userStates[chatID].currRec = rec
 	filter := model.PileFilter{}
@@ -140,16 +126,13 @@ func (b *TgBot) showPileSelectionMenu(chatID int64, mode string) {
 	if err != nil {
 		log.Println(err)
 	}
-
 	if len(piles) == 0 {
 		b.sendMessage(chatID, "Отсутствуют сваи заданным критериям")
 		return
 	}
-
-	b.userStates[chatID].waitingFor = bm.PileSelection
 	b.userStates[chatID].currMenu = *bm.NewDynamicMenu(piles)
-	b.userStates[chatID].currMenu.BuildMenuOrHandleSelection(piles)
-	// TO-DO НАРИСОВАТь МЕНЮ
+	b.makePileSelectionMenu(chatID, "")
+	b.userStates[chatID].waitingFor = bm.WaitPileNumber
 }
 
 func (b *TgBot) newInlineKb(chatID int64, kb *tgbotapi.InlineKeyboardMarkup, text string) {
@@ -165,18 +148,68 @@ func (b *TgBot) newInlineKb(chatID int64, kb *tgbotapi.InlineKeyboardMarkup, tex
 	}
 }
 
+func (b *TgBot) processCommand(chatID int64, text string) {
+	switch text {
+	case "/start":
+		b.showPilesMenu(chatID)
+	default:
+		b.processUserInput(chatID, text)
+	}
+}
+
 func (b *TgBot) processUserInput(chatID int64, text string) {
 	switch text {
+	default:
+		b.sendMessage(chatID, "other")
+	}
+}
+
+func (b *TgBot) processCallbackQuery(chatID int64, data string) {
+	switch data {
 	case bm.PilesAll,
 		bm.PilesNew,
 		bm.PilesNoFPH,
 		bm.PilesLoggedToday,
 		bm.PilesLoggedYesterday:
-		b.sendMessage(chatID, text)
+		b.startPileSelection(chatID, data)
 	default:
-		b.sendMessage(chatID, "other")
+		switch b.userStates[chatID].waitingFor {
+		case bm.WaitPileNumber:
+			b.makePileSelectionMenu(chatID, data)
+		}
 	}
-	return
+}
+
+func (b *TgBot) getUserState(chatID int64, tgUser *tgbotapi.User) {
+	if _, ok := b.userStates[chatID]; !ok {
+		b.userStates[chatID] = &UserState{}
+	}
+	if b.userStates[chatID].userName == "" {
+		userName := fmt.Sprintf("%s %s",
+			tgUser.FirstName,
+			tgUser.LastName)
+		var err error
+		b.userStates[chatID].userName, err = b.ws.GetUserFullName(chatID, userName)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func (b *TgBot) makePileSelectionMenu(chatID int64, data string) {
+	if b.userStates[chatID].waitingFor == bm.WaitPileNumber {
+		b.userStates[chatID].currMenu.BuildMenuOrHandleSelection(data)
+	} else {
+		b.userStates[chatID].currMenu.BuildMenuOrHandleSelection(nil)
+	}
+	if !b.userStates[chatID].currMenu.SingleItemSelected() {
+		kb := b.userStates[chatID].currMenu.GetTgKeyboardMenu()
+		b.newInlineKb(chatID, &kb, "Выберите номер сваи из предложенных ниже вариантов:")
+		return
+	}
+	b.userStates[chatID].currRec.PileNumber = data
+	b.sendMessage(chatID, fmt.Sprintf("Выбрана свая: %s", b.userStates[chatID].currRec.PileNumber))
+	b.userStates[chatID].waitingFor = "fin"
 }
 
 func (b *TgBot) sendMessage(chatID int64, text string) {

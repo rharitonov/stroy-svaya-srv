@@ -23,11 +23,14 @@ func NewWebService(baseUrl string) *WebService {
 }
 
 func (w *WebService) GetPiles(filter model.PileFilter) ([]string, error) {
+	//resp, err := http.Get("http://localhost:8080/getpilestodriving?project_id=1")
 	values, err := w.getUrlValues(filter)
 	if err != nil {
 		return nil, err
 	}
 	url := fmt.Sprintf("%s/getpiles?%s", w.BaseUrl, values)
+	//url := fmt.Sprintf("%s/getpilestodriving?%s", w.BaseUrl, values)
+	//resp, err := http.Get("http://localhost:8080/getpilestodriving?project_id=1")
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -41,7 +44,7 @@ func (w *WebService) GetPiles(filter model.PileFilter) ([]string, error) {
 	if err := json.Unmarshal(body, &piles); err != nil {
 		return nil, err
 	}
-	return piles, err
+	return piles, nil
 }
 
 func (w *WebService) SendExcel(projectId int) error {

@@ -2,10 +2,13 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"stroy-svaya/internal/model"
 	"stroy-svaya/internal/service"
+	"time"
 )
 
 type Handler struct {
@@ -122,18 +125,13 @@ func (h *Handler) GetPiles(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	var filter model.PileFilter
 	query := r.URL.Query()
-	jsonQuery, err := json.Marshal(query)
+	filter, err := h.decodeUrlQueryToFilter(&query)
 	if err != nil {
-		http.Error(w, "", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := json.Unmarshal([]byte(jsonQuery), &filter); err != nil {
-		http.Error(w, "", http.StatusBadRequest)
-		return
-	}
-	piles, err := h.srv.GetPiles(filter)
+	piles, err := h.srv.GetPiles(*filter)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -172,4 +170,45 @@ func (h *Handler) GetUserFullNameInitialFormat(w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (h *Handler) decodeUrlQueryToFilter(val *url.Values) (*model.PileFilter, error) {
+	filter := model.PileFilter{}
+	var err error
+	for key, values := range *val {
+		if len(values) == 0 {
+			continue
+		}
+		value := values[0]
+		switch key {
+		case "project_id":
+			filter.ProjectId, err = strconv.Atoi(value)
+		case "pile_number":
+			filter.PileNumber = &value
+		case "pile_field_id":
+			filter.PileFieldId, err = strconv.Atoi(value)
+		case "start_date":
+			dd, err0 := time.Parse(time.RFC3339, value)
+			err = err0
+			if err == nil {
+				filter.StartDate = &dd
+			}
+		case "fact_pile_head":
+			num, err0 := strconv.Atoi(value)
+			err = err0
+			if err == nil {
+				filter.FactPileHead = &num
+			}
+		case "recorded_by":
+			filter.RecordedBy = &value
+		case "status":
+			filter.Status, err = strconv.Atoi(value)
+		default:
+			return nil, fmt.Errorf("unknown url query key %s", key)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("decode PileFilter.%s: %s", key, err)
+		}
+	}
+	return &filter, nil
 }
