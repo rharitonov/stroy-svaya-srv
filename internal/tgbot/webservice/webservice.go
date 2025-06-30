@@ -23,14 +23,11 @@ func NewWebService(baseUrl string) *WebService {
 }
 
 func (w *WebService) GetPiles(filter model.PileFilter) ([]string, error) {
-	//resp, err := http.Get("http://localhost:8080/getpilestodriving?project_id=1")
 	values, err := w.getUrlValues(filter)
 	if err != nil {
 		return nil, err
 	}
 	url := fmt.Sprintf("%s/getpiles?%s", w.BaseUrl, values)
-	//url := fmt.Sprintf("%s/getpilestodriving?%s", w.BaseUrl, values)
-	//resp, err := http.Get("http://localhost:8080/getpilestodriving?project_id=1")
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -45,6 +42,28 @@ func (w *WebService) GetPiles(filter model.PileFilter) ([]string, error) {
 		return nil, err
 	}
 	return piles, nil
+}
+
+func (w *WebService) GetPile(filter model.PileFilter) (*model.PileDrivingRecordLine, error) {
+	values, err := w.getUrlValues(filter)
+	if err != nil {
+		return nil, err
+	}
+	url := fmt.Sprintf("%s/getpile?%s", w.BaseUrl, values)
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var pile model.PileDrivingRecordLine
+	if err := json.Unmarshal(body, &pile); err != nil {
+		return nil, err
+	}
+	return &pile, nil
 }
 
 func (w *WebService) SendExcel(projectId int) error {

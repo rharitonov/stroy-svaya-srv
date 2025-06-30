@@ -1,21 +1,41 @@
 package main
 
 import (
-	"encoding/json"
-	"log"
-	"net/url"
+	"fmt"
+	"stroy-svaya/internal/model"
+	"stroy-svaya/internal/tgbot/webservice"
 )
 
 func main() {
-	values, err := url.ParseQuery("pile_field_id=1&project_id=1&recorded_by=%D0%92%D0%B0%D1%81%D1%8F&status=30")
-	//values, err := url.Parse("http://localhost:8080/getpiles?pile_field_id=1&project_id=1&recorded_by=%D0%92%D0%B0%D1%81%D1%8F&status=30")
+	ws := webservice.NewWebService("")
+	p0 := model.PileDrivingRecordLine{}
+	p0.ProjectId = 1
+	p0.PileFieldId = 1
+	p0.PileNumber = "299"
+
+	filter := model.PileFilter{}
+	filter.ProjectId = p0.ProjectId
+	filter.PileFieldId = p0.PileFieldId
+	filter.PileNumber = &p0.PileNumber
+	p, err := ws.GetPile(filter)
 	if err != nil {
-		log.Fatal("parse:", err)
+		panic(err)
 	}
-	println("values:", values.Get("recorded_by"))
-	jsonData, err := json.Marshal(values)
-	if err != nil {
-		log.Fatal("marshal:", err)
-	}
-	println("result:", jsonData)
+	fmt.Println(p)
+
+	// c := config.Load()
+	// r, _ := repository.NewSQLiteRepository(c.DatabasePath)
+	// s := service.NewService(r)
+
+	// filter := model.PileFilter{}
+	// filter.ProjectId = 1
+	// filter.PileFieldId = 1
+	// filter.PileNumber = new(string)
+	// *filter.PileNumber = "298"
+
+	// p, err := s.GetPile(filter)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Println(*p)
 }

@@ -149,6 +149,14 @@ func (s *Service) GetPiles(filter model.PileFilter) ([]string, error) {
 	return piles, nil
 }
 
+func (s *Service) GetPile(filter model.PileFilter) (*model.PileDrivingRecordLine, error) {
+	pile, err := s.repo.GetPile(filter)
+	if err != nil {
+		return nil, err
+	}
+	return pile, nil
+}
+
 func (s *Service) GetUserFullNameInitialFormat(tgChatId int64) (string, error) {
 	userName, err := s.repo.GetUserFullNameInitialFormat(tgChatId)
 	if err != nil {

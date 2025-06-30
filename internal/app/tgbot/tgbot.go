@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"stroy-svaya/internal/model"
 	bm "stroy-svaya/internal/tgbot/botmenu"
 	"stroy-svaya/internal/tgbot/webservice"
@@ -87,6 +88,36 @@ func (b *TgBot) showPilesMenu(chatID int64) {
 		),
 	)
 	b.newInlineKb(chatID, &kb, "Добро пожаловать в журнал забивки свай!\n")
+}
+
+func (b *TgBot) showPileOperationsMenu(chatID int64) {
+	kb := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Запись в журнал", bm.PileOpsInsert),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Ввод/изм. ФОГ", bm.PileOpsUpdateFPH),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("К выбору сваи", bm.PileOpsBack),
+		),
+	)
+	b.newInlineKb(chatID, &kb, "Доступные операции:")
+}
+
+func (b *TgBot) showPileStartDateMenu(chatID int64) {
+	kb := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Сегодня", bm.PileOpsStartDateToday),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Вчера", bm.PileOpsStartDateYesterday),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("К выбору сваи", bm.PileOpsBack),
+		),
+	)
+	b.newInlineKb(chatID, &kb, "Выберите дату забивки сваи:")
 }
 
 func (b *TgBot) startPileSelection(chatID int64, mode string) {
@@ -176,6 +207,15 @@ func (b *TgBot) processCallbackQuery(chatID int64, data string) {
 		switch b.userStates[chatID].waitingFor {
 		case bm.WaitPileNumber:
 			b.makePileSelectionMenu(chatID, data)
+		case bm.WaitPileOperation:
+			switch data {
+			case bm.PileOpsUpdateFPH:
+				b.OnBeforHandlePileUpdateFPH(chatID)
+			case bm.PileOpsInsert:
+
+			}
+		case bm.WaitPileUpdateFPH:
+
 		}
 	}
 }
@@ -204,12 +244,89 @@ func (b *TgBot) makePileSelectionMenu(chatID int64, data string) {
 	}
 	if !b.userStates[chatID].currMenu.SingleItemSelected() {
 		kb := b.userStates[chatID].currMenu.GetTgKeyboardMenu()
-		b.newInlineKb(chatID, &kb, "Выберите номер сваи из предложенных ниже вариантов:")
+		b.newInlineKb(chatID, &kb, "Выберите номер сваи из предложенных вариантов:")
 		return
 	}
-	b.userStates[chatID].currRec.PileNumber = data
-	b.sendMessage(chatID, fmt.Sprintf("Выбрана свая: %s", b.userStates[chatID].currRec.PileNumber))
-	b.userStates[chatID].waitingFor = "fin"
+	b.updatePileRec(chatID, data)
+	b.showPileInfo(chatID, "Выбрана свая:")
+	b.showPileOperationsMenu(chatID)
+	b.userStates[chatID].waitingFor = bm.WaitPileOperation
+}
+
+func (b *TgBot) updatePileRec(chatID int64, pile_no string) {
+	b.userStates[chatID].currRec.PileNumber = pile_no
+	filter := model.PileFilter{}
+	filter.ProjectId = b.userStates[chatID].currRec.ProjectId
+	filter.PileFieldId = b.userStates[chatID].currRec.PileFieldId
+	filter.PileNumber = &b.userStates[chatID].currRec.PileNumber
+	p, err := b.ws.GetPile(filter)
+	if err != nil {
+		panic(err)
+	}
+	b.userStates[chatID].currRec = *p
+}
+
+func (b *TgBot) showPileInfo(chatID int64, title string) {
+	p := b.userStates[chatID].currRec
+	infoText := ""
+	switch p.Status {
+	case 10:
+		infoText = "Номер сваи: %s\nСтатус: нет данных в журнале"
+		infoText = fmt.Sprintf(infoText, p.PileNumber)
+	case 20:
+		infoText = "Номер сваи: %s\n" +
+			"Статус: запись в журнале;\n" +
+			"Дата забивки: %s;\n" +
+			"Факт. отметка головы: %d;\n" +
+			"Оператор: %s;\n" +
+			"Дата записи: %s;\n"
+		infoText = fmt.Sprintf(infoText,
+			p.PileNumber,
+			p.StartDate.Format(time.DateOnly),
+			p.FactPileHead,
+			p.RecordedBy,
+			p.CreatedAt.Format(time.DateTime))
+		if !p.UpdatedAt.IsZero() {
+			infoText = fmt.Sprintf("%s\nДата изм.: %s\n", infoText, p.UpdatedAt.Format(time.DateTime))
+		}
+	}
+	if title != "" {
+		infoText = fmt.Sprintf("%s\n%s", title, infoText)
+	}
+	b.sendMessage(chatID, infoText)
+}
+
+func (b *TgBot) onBeforePileUpdateFPH(chatID int64) {
+	p := b.userStates[chatID].currRec
+	promt := ""
+	if p.FactPileHead == 0 {
+		promt = "Введи значение ФОГ сваи (в мм, например, 10720):"
+	} else {
+		promt = fmt.Sprintf("Текущие значение ФОГ %d мм. Введи новое значение (в мм):", p.FactPileHead)
+	}
+	b.sendMessage(chatID, promt)
+	b.userStates[chatID].waitingFor = bm.WaitPileUpdateFPH
+}
+
+func (b *TgBot) onAfterPileUpdateFPH(chatID int64, data string) {
+	p := b.userStates[chatID].currRec
+	num, err := strconv.Atoi(data)
+	if err != nil {
+		b.sendMessage(chatID, "Неверный формат ФОГ. Пожалуйста, введите значение (в мм ):")
+		return
+	}
+	p.FactPileHead = num
+	if p.StartDate.IsZero() {
+		b.showPileStartDateMenu(chatID)
+		b.userStates[chatID].waitingFor = bm.WaitPileStartDate
+		return
+	}
+	b.insertOrUpdatePile(chatID)
+}
+
+func (b *TgBot) insertOrUpdatePile(chatID int64) {
+
+	b.showPileInfo(chatID, "Данные сохранены:")
 }
 
 func (b *TgBot) sendMessage(chatID int64, text string) {

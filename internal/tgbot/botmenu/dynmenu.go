@@ -12,13 +12,21 @@ import (
 )
 
 const (
-	PilesAll             = "PilesAll"
-	PilesNew             = "PilesNew"
-	PilesNoFPH           = "PilesNoFPH"
-	PilesLoggedYesterday = "PilesLoggedYesterday"
-	PilesLoggedToday     = "PilesLoggedToday"
-	PilesSendExcel       = "PilesSendExcel"
-	WaitPileNumber       = "WaitPileNumber"
+	PilesAll                  = "PilesAll"
+	PilesNew                  = "PilesNew"
+	PilesNoFPH                = "PilesNoFPH"
+	PilesLoggedYesterday      = "PilesLoggedYesterday"
+	PilesLoggedToday          = "PilesLoggedToday"
+	PilesSendExcel            = "PilesSendExcel"
+	PileOpsInsert             = "PileOpsInsert"
+	PileOpsUpdateFPH          = "PileOpsUpdateFPH"
+	PileOpsStartDateToday     = "PileOpsStartDateToday"
+	PileOpsStartDateYesterday = "PileOpsStartDateYesterday"
+	PileOpsBack               = "PileOpsBack"
+	WaitPileNumber            = "WaitPileNumber"
+	WaitPileOperation         = "WaitPileOperation"
+	WaitPileUpdateFPH         = "WaitPileUpdateFPH"
+	WaitPileStartDate         = "WaitPileStartDate"
 )
 
 const (

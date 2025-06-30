@@ -9,6 +9,8 @@ type PileDrivingRecordLine struct {
 	StartDate    time.Time `json:"start_date"`
 	FactPileHead int       `json:"fact_pile_head"`
 	RecordedBy   string    `json:"recorded_by"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 	Status       int       `json:"status"` // 10 - planned, 20 - logged, 30 - all, 40 -approved
 }
 

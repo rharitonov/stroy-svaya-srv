@@ -35,6 +35,7 @@ func New() (*App, error) {
 	mux.HandleFunc("GET /getpdrlines", a.h.GetPileDrivingRecord)
 	mux.HandleFunc("GET /getpilestodriving", a.h.GetPilesToDriving)
 	mux.HandleFunc("GET /getpiles", a.h.GetPiles)
+	mux.HandleFunc("GET /getpile", a.h.GetPile)
 	mux.HandleFunc("GET /sendpdrlog", a.h.SendPileDrivingRecordLog)
 	mux.HandleFunc("GET /getuserfullname", a.h.GetUserFullNameInitialFormat)
 	a.srv = &http.Server{

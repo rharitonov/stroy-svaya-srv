@@ -10,10 +10,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const (
-	dateFormat = "2006-01-02"
-)
-
 type Repository interface {
 	InsertPileDrivingRecordLine(rec *model.PileDrivingRecordLine) error
 	Close() error
@@ -52,7 +48,7 @@ func (r *SQLiteRepository) InsertPileDrivingRecordLine(rec *model.PileDrivingRec
 		rec.PileFieldId,
 		rec.PileNumber,
 		rec.ProjectId,
-		rec.StartDate.Format(dateFormat),
+		rec.StartDate.Format(time.DateOnly),
 		rec.FactPileHead,
 		rec.RecordedBy,
 	)
@@ -179,7 +175,7 @@ func (r *SQLiteRepository) GetPiles(filter model.PileFilter) ([]string, error) {
 				if isDate {
 					date, _ := time.Parse(time.RFC3339, value.(string))
 					where = fmt.Sprintf("%spdr.%s = ?", where, field)
-					args = append(args, date.Format(dateFormat))
+					args = append(args, date.Format(time.DateOnly))
 				} else {
 					where = fmt.Sprintf("%spdr.%s = ?", where, field)
 					args = append(args, value)
@@ -202,6 +198,99 @@ func (r *SQLiteRepository) GetPiles(filter model.PileFilter) ([]string, error) {
 		pileNos = append(pileNos, pileNo)
 	}
 	return pileNos, nil
+}
+
+func (r *SQLiteRepository) GetPile(filter model.PileFilter) (*model.PileDrivingRecordLine, error) {
+	p := &model.PileDrivingRecordLine{}
+	p.ProjectId = filter.ProjectId
+	p.PileFieldId = filter.PileFieldId
+	p.PileNumber = *filter.PileNumber
+
+	var (
+		num, sdate, rec_by string
+		fph                int
+		cr_at, upd_at      sql.NullString
+		err                error
+	)
+	query := `select 1 from pile_in_field pif
+        inner join pile_driving_record pdr 
+            on pdr.pile_field_id = pif.pile_field_id 
+            and pdr.pile_number = pif.pile_number 
+        inner join pile_field pf 
+            on pf.id = pif.pile_field_id 
+        where pf.project_id = ?
+            and pf.id = ?
+            and pif.pile_number = ?
+        order by cast(pif.pile_number as int);`
+	err = r.db.QueryRow(query, filter.ProjectId, filter.PileFieldId, *filter.PileNumber).Scan(&num)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			p.Status = 10
+			return p, nil
+		}
+		return nil, err
+	}
+
+	query = `select 
+            pif.pile_number,
+            date(pdr.start_date),
+            pdr.fact_pile_head,
+            pdr.recorded_by,
+            strftime('%Y-%m-%d %H:%M:%S', pdr.created_at),
+            strftime('%Y-%m-%d %H:%M:%S', pdr.updated_at)
+        from pile_in_field pif
+        left join pile_driving_record pdr 
+            on pdr.pile_field_id = pif.pile_field_id 
+            and pdr.pile_number = pif.pile_number 
+        inner join pile_field pf 
+            on pf.id = pif.pile_field_id 
+        where pf.project_id = ?
+            and pf.id = ?
+            and pif.pile_number = ?
+        order by cast(pif.pile_number as int);`
+
+	//rows, err := r.db.Query(query)
+	rows, err := r.db.Query(query,
+		filter.ProjectId,
+		filter.PileFieldId,
+		*filter.PileNumber)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return nil, fmt.Errorf("pile number %s does not exist", *filter.PileNumber)
+	}
+	if err := rows.Scan(&num, &sdate, &fph, &rec_by, &cr_at, &upd_at); err != nil {
+		return nil, err
+	}
+	fmt.Println(cr_at)
+
+	dd, err := time.Parse(time.DateOnly, sdate)
+	if err == nil {
+		p.StartDate = dd
+	}
+
+	p.FactPileHead = fph
+	p.RecordedBy = rec_by
+
+	if cr_at.Valid {
+		dd, err := time.Parse(time.DateTime, cr_at.String)
+		if err == nil {
+			p.CreatedAt = dd
+		}
+	}
+
+	if upd_at.Valid {
+		dd, err := time.Parse(time.DateTime, upd_at.String)
+		if err == nil {
+			p.UpdatedAt = dd
+		}
+	}
+
+	p.Status = 20
+	return p, nil
 }
 
 func (r *SQLiteRepository) GetUserFullNameInitialFormat(tgChatId int64) (string, error) {
