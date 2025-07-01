@@ -4,8 +4,8 @@ CREATE TABLE IF NOT EXISTS pile_driving_record (
     pile_field_id INTEGER NOT NULL,
     pile_number TEXT NOT NULL,                      -- Номер сваи
     project_id INTEGER NOT NULL,                    -- ID проекта
-    start_date DATE NOT NULL,                   -- Дата начала забивки
-    end_date DATE,                              -- Дата окончания забивки
+    start_date DATE NOT NULL,                       -- Дата начала забивки
+    end_date DATE,                                  -- Дата окончания забивки
     fact_pile_head INTEGER                          -- Абс. отметка верха головы сваи, факт, мм
     blows_count INTEGER,                            -- Количество ударов
     recorded_by INTEGER NOT NULL,                   -- ID оператора/инженера
@@ -27,5 +27,5 @@ CREATE TRIGGER IF NOT EXISTS update_pile_driving_timestamp
 AFTER UPDATE ON pile_driving_record
 FOR EACH ROW
 BEGIN
-    UPDATE pile_driving_record SET updated_at = CURRENT_TIMESTAMP WHERE id = OLD.id;
+    UPDATE pile_driving_record SET updated_at = CURRENT_TIMESTAMP WHERE entry_no = OLD.entry_no;
 END;

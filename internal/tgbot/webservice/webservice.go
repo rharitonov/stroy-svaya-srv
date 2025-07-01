@@ -131,6 +131,19 @@ func (w *WebService) InsertOrUpdatePdrLine(rec *model.PileDrivingRecordLine) err
 	return nil
 }
 
+func (w *WebService) SendPdrLog(projectId int) error {
+	if projectId == 0 {
+		projectId = 1
+	}
+	url := fmt.Sprintf("%s/sendpdrlog?project_id=%d", w.BaseUrl, projectId)
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
+}
+
 func (w *WebService) getUrlValues(filter model.PileFilter) (string, error) {
 	jsonStr, err := json.Marshal(filter)
 	if err != nil {

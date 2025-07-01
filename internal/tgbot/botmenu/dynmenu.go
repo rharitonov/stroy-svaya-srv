@@ -101,6 +101,9 @@ func (dm *DynamicMenu) GetTgKeyboardMenu() tgbotapi.InlineKeyboardMarkup {
 		}
 		kbRows = append(kbRows, tgbotapi.NewInlineKeyboardRow(btns...))
 	}
+	btns := make([]tgbotapi.InlineKeyboardButton, 0, 1)
+	btns = append(btns, tgbotapi.NewInlineKeyboardButtonData("В главное меню", PileOpsBack))
+	kbRows = append(kbRows, tgbotapi.NewInlineKeyboardRow(btns...))
 	return tgbotapi.NewInlineKeyboardMarkup(kbRows...)
 }
 

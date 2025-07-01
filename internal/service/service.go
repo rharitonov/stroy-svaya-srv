@@ -72,9 +72,9 @@ func (s *Service) SavePileDrivingRecordLogToExcel(projectId int) (string, error)
 
 	row := sheet.AddRow()
 	row.AddCell().Value = "Номер сваи"
-	row.AddCell().Value = "Дата"
-	row.AddCell().Value = "Отметка верха головы. факт"
-	row.AddCell().Value = "Ответственный"
+	row.AddCell().Value = "Дата забивки"
+	row.AddCell().Value = "Факт. отметка верха головы"
+	row.AddCell().Value = "Оператор"
 	for _, ln := range lines {
 		row = sheet.AddRow()
 		row.AddCell().Value = ln.PileNumber

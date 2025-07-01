@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"stroy-svaya/internal/model"
 	"time"
 
@@ -248,7 +249,6 @@ func (r *SQLiteRepository) GetPile(filter model.PileFilter) (*model.PileDrivingR
             and pif.pile_number = ?
         order by cast(pif.pile_number as int);`
 
-	//rows, err := r.db.Query(query)
 	rows, err := r.db.Query(query,
 		filter.ProjectId,
 		filter.PileFieldId,
@@ -264,7 +264,6 @@ func (r *SQLiteRepository) GetPile(filter model.PileFilter) (*model.PileDrivingR
 	if err := rows.Scan(&num, &sdate, &fph, &rec_by, &cr_at, &upd_at); err != nil {
 		return nil, err
 	}
-	fmt.Println(cr_at)
 
 	dd, err := time.Parse(time.DateOnly, sdate)
 	if err == nil {
@@ -323,7 +322,7 @@ func (r *SQLiteRepository) InsertOrUpdatePdrPile(rec *model.PileDrivingRecordLin
 		)
 
 	case 20:
-		query = `UPDATE pile_driving_record
+		query = `UPDATE pile_driving_record SET
 				start_date = ?,
 				fact_pile_head = ?,
 				recorded_by = ?
@@ -335,6 +334,9 @@ func (r *SQLiteRepository) InsertOrUpdatePdrPile(rec *model.PileDrivingRecordLin
 			rec.ProjectId,
 			rec.PileFieldId,
 			rec.PileNumber)
+		if err != nil { // DBG
+			log.Println(err)
+		}
 	default:
 		return fmt.Errorf("insert or update pile error")
 	}

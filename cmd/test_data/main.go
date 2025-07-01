@@ -115,5 +115,5 @@ func main() {
 		}
 	}
 
-	log.Print("Test data created")
+	log.Print("Test data was created")
 }

@@ -1,4 +1,3 @@
--- up
 -- проект
 CREATE TABLE IF NOT EXISTS project (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -8,11 +7,13 @@ CREATE TABLE IF NOT EXISTS project (
     parent_project_id INTEGER,                      -- ID родительского проекта (для иерархии)
     start_date DATE,                                -- Дата начала проекта
     end_date DATE,                                  -- Планируемая дата завершения
-    status TEXT DEFAULT 'active',                   -- Статус проекта (active, completed, canceled)
+    status TEXT DEFAULT 'active' 
+        CHECK(status IN ('active', 'completed', 'canceled', 'planned')), -- Статус проекта
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME,
     
     FOREIGN KEY (parent_project_id) REFERENCES project(id) -- Рекурсивная связь для иерархии проектов
+    CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date) -- Валидация дат
 );
 
 -- Создаем индекс для родительских проектов

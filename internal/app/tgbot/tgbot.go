@@ -64,7 +64,12 @@ func (b *TgBot) Run() error {
 			chatID := update.CallbackQuery.Message.Chat.ID
 			data := update.CallbackQuery.Data
 			b.getUserState(chatID, update.CallbackQuery.Message.From)
-			b.processCallbackQuery(chatID, data)
+			if data != bm.PilesSendExcel {
+				b.processCallbackQuery(chatID, data)
+			} else {
+				callback := update.CallbackQuery
+				b.processCallbackQueryWithAlert(chatID, data, callback)
+			}
 		default:
 			continue
 		}
@@ -77,7 +82,7 @@ func (b *TgBot) showPilesMenu(chatID int64) {
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Все сваи", bm.PilesAll),
 			tgbotapi.NewInlineKeyboardButtonData("Незабитые", bm.PilesNew),
-			tgbotapi.NewInlineKeyboardButtonData("Без ФОГ", bm.PilesNoFPH),
+			tgbotapi.NewInlineKeyboardButtonData("Без ФОВГ", bm.PilesNoFPH),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Забитые вчера", bm.PilesLoggedYesterday),
@@ -95,29 +100,25 @@ func (b *TgBot) showPileOperationsMenu(chatID int64) {
 	if b.userStates[chatID].currRec.Status == 10 {
 		kb = tgbotapi.NewInlineKeyboardMarkup(
 			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Запись в журнал", bm.PileOpsInsert)),
+				tgbotapi.NewInlineKeyboardButtonData("Запись в журнал", bm.PileOpsInsert),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Ввод/изм. ФОВГ", bm.PileOpsUpdateFPH),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("В главное меню", bm.PileOpsBack),
+			),
+		)
+	} else {
+		kb = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Ввод/изм. ФОВГ", bm.PileOpsUpdateFPH),
+			),
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("В главное меню", bm.PileOpsBack),
+			),
 		)
 	}
-	kb = tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Ввод/изм. ФОГ", bm.PileOpsUpdateFPH),
-		),
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("К выбору сваи", bm.PileOpsBack),
-		),
-	)
-
-	// kb := tgbotapi.NewInlineKeyboardMarkup(
-	// 	tgbotapi.NewInlineKeyboardRow(
-	// 		tgbotapi.NewInlineKeyboardButtonData("Запись в журнал", bm.PileOpsInsert),
-	// 	),
-	// 	tgbotapi.NewInlineKeyboardRow(
-	// 		tgbotapi.NewInlineKeyboardButtonData("Ввод/изм. ФОГ", bm.PileOpsUpdateFPH),
-	// 	),
-	// 	tgbotapi.NewInlineKeyboardRow(
-	// 		tgbotapi.NewInlineKeyboardButtonData("К выбору сваи", bm.PileOpsBack),
-	// 	),
-	// )
 	b.newInlineKb(chatID, &kb, "Доступные операции:")
 }
 
@@ -130,10 +131,19 @@ func (b *TgBot) showPileStartDateMenu(chatID int64) {
 			tgbotapi.NewInlineKeyboardButtonData("Вчера", bm.PileOpsStartDateYesterday),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("К выбору сваи", bm.PileOpsBack),
+			tgbotapi.NewInlineKeyboardButtonData("В главное меню", bm.PileOpsBack),
 		),
 	)
 	b.newInlineKb(chatID, &kb, "Выберите дату забивки сваи:")
+}
+
+func (b *TgBot) showAfterUpdatePdrLineMenu(chatID int64) {
+	kb := tgbotapi.NewInlineKeyboardMarkup(
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("В главное меню", bm.PileOpsBack),
+		),
+	)
+	b.newInlineKb(chatID, &kb, b.getPileInfo(chatID, "Данные успешно записаны в журнал:"))
 }
 
 func (b *TgBot) startPileSelection(chatID int64, mode string) {
@@ -183,11 +193,6 @@ func (b *TgBot) startPileSelection(chatID int64, mode string) {
 }
 
 func (b *TgBot) newInlineKb(chatID int64, kb *tgbotapi.InlineKeyboardMarkup, text string) {
-	// msg := tgbotapi.NewMessage(chatID, "")
-	// msg.ReplyMarkup = tgbotapi.NewRemoveKeyboard(true)
-	// if _, err := b.bot.Send(msg); err != nil {
-	// 	log.Panic(err)
-	// }
 	msg := tgbotapi.NewMessage(chatID, text)
 	msg.ReplyMarkup = kb
 	if _, err := b.bot.Send(msg); err != nil {
@@ -215,13 +220,14 @@ func (b *TgBot) processUserInput(chatID int64, text string) {
 
 func (b *TgBot) processCallbackQuery(chatID int64, data string) {
 	switch data {
-	case bm.PileOpsBack,
-		bm.PilesAll,
+	case bm.PilesAll,
 		bm.PilesNew,
 		bm.PilesNoFPH,
 		bm.PilesLoggedToday,
 		bm.PilesLoggedYesterday:
 		b.startPileSelection(chatID, data)
+	case bm.PileOpsBack:
+		b.showPilesMenu(chatID)
 	default:
 		switch b.userStates[chatID].waitingFor {
 		case bm.WaitPileNumber:
@@ -238,6 +244,13 @@ func (b *TgBot) processCallbackQuery(chatID int64, data string) {
 		case bm.WaitPileStartDate:
 			b.onAfterStartDateSelect(chatID, data)
 		}
+	}
+}
+
+func (b *TgBot) processCallbackQueryWithAlert(chatID int64, data string, callback *tgbotapi.CallbackQuery) {
+	switch data {
+	case bm.PilesSendExcel:
+		b.sendPdrLog(chatID, callback)
 	}
 }
 
@@ -287,44 +300,48 @@ func (b *TgBot) updatePileRec(chatID int64, pile_no string) {
 	b.userStates[chatID].currRec = *p
 }
 
-func (b *TgBot) showPileInfo(chatID int64, title string) {
+func (b *TgBot) getPileInfo(chatID int64, title string) string {
 	p := b.userStates[chatID].currRec
 	infoText := ""
 	switch p.Status {
 	case 10:
-		infoText = "Номер сваи: %s\nСтатус: нет данных в журнале"
+		infoText = "Номер сваи: %s\nСтатус: план"
 		infoText = fmt.Sprintf(infoText, p.PileNumber)
 	case 20:
 		infoText = "Номер сваи: %s\n" +
 			"Статус: запись в журнале;\n" +
 			"Дата забивки: %s;\n" +
 			"Факт. отметка головы: %d;\n" +
-			"Оператор: %s;"
+			"Оператор: %s;\n"
 		infoText = fmt.Sprintf(infoText,
 			p.PileNumber,
 			p.StartDate.Format(time.DateOnly),
 			p.FactPileHead,
 			p.RecordedBy)
 		if !p.CreatedAt.IsZero() {
-			infoText = fmt.Sprintf("%s\nДата записи: %s;\n", infoText, p.CreatedAt.Format(time.DateTime))
+			infoText = fmt.Sprintf("%sДата записи: %s;\n", infoText, p.CreatedAt.Format(time.DateTime))
 		}
 		if !p.UpdatedAt.IsZero() {
-			infoText = fmt.Sprintf("%s\nДата изм.: %s\n", infoText, p.UpdatedAt.Format(time.DateTime))
+			infoText = fmt.Sprintf("%sДата изм.: %s\n", infoText, p.UpdatedAt.Format(time.DateTime))
 		}
 	}
 	if title != "" {
 		infoText = fmt.Sprintf("%s\n%s", title, infoText)
 	}
-	b.sendMessage(chatID, infoText)
+	return infoText
+}
+
+func (b *TgBot) showPileInfo(chatID int64, title string) {
+	b.sendMessage(chatID, b.getPileInfo(chatID, title))
 }
 
 func (b *TgBot) onBeforePileUpdateFPH(chatID int64) {
 	p := b.userStates[chatID].currRec
 	promt := ""
 	if p.FactPileHead == 0 {
-		promt = "Введи значение ФОГ сваи (в мм, например, 10720):"
+		promt = "Введи значение ФОВГ сваи (в мм, например, 10720):"
 	} else {
-		promt = fmt.Sprintf("Текущие значение ФОГ %d мм. Введи новое значение (в мм):", p.FactPileHead)
+		promt = fmt.Sprintf("Текущие значение ФОВГ %d мм. Введите новое значение (в мм):", p.FactPileHead)
 	}
 	b.sendMessage(chatID, promt)
 	b.userStates[chatID].waitingFor = bm.WaitPileUpdateFPH
@@ -333,7 +350,7 @@ func (b *TgBot) onBeforePileUpdateFPH(chatID int64) {
 func (b *TgBot) onAfterPileUpdateFPH(chatID int64, data string) {
 	num, err := strconv.Atoi(data)
 	if err != nil {
-		b.sendMessage(chatID, "Неверный формат ФОГ. Пожалуйста, введите значение (в мм ):")
+		b.sendMessage(chatID, "Неверный формат ФОВГ. Пожалуйста, введите значение (в мм ):")
 		return
 	}
 	b.userStates[chatID].currRec.FactPileHead = num
@@ -350,6 +367,7 @@ func (b *TgBot) onAfterStartDateSelect(chatID int64, data string) {
 		panic("start date selection error: nor today neither yesterday")
 	}
 	b.userStates[chatID].currRec.StartDate = sd
+	b.userStates[chatID].currRec.RecordedBy = b.userStates[chatID].userName
 	b.insertOrUpdatePile(chatID)
 }
 
@@ -363,7 +381,14 @@ func (b *TgBot) insertOrUpdatePile(chatID int64) {
 		panic(err)
 	}
 	b.userStates[chatID].currRec.Status = 20
-	b.showPileInfo(chatID, "Данные сохранены:")
+	b.showAfterUpdatePdrLineMenu(chatID)
+}
+
+func (b *TgBot) sendPdrLog(chatID int64, callback *tgbotapi.CallbackQuery) {
+	if err := b.ws.SendPdrLog(b.userStates[chatID].currRec.ProjectId); err != nil {
+		panic(err)
+	}
+	b.createAlert(callback, "Файл Excel отправлен на рабочий email")
 }
 
 func (b *TgBot) sendMessage(chatID int64, text string) {
@@ -371,5 +396,13 @@ func (b *TgBot) sendMessage(chatID int64, text string) {
 	_, err := b.bot.Send(msg)
 	if err != nil {
 		log.Println("Ошибка при отправке сообщения:", err)
+	}
+}
+
+func (b *TgBot) createAlert(callback *tgbotapi.CallbackQuery, text string) {
+	alert := tgbotapi.NewCallbackWithAlert(callback.ID, text)
+	alert.ShowAlert = true
+	if _, err := b.bot.Request(alert); err != nil {
+		panic(fmt.Errorf("callback with alert error: %v", err))
 	}
 }
