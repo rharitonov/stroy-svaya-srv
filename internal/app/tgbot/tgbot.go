@@ -70,16 +70,6 @@ func (b *TgBot) Run() error {
 			} else {
 				b.processCallbackQueryWithAlert(chatID, data, callback)
 			}
-
-			// chatID := update.CallbackQuery.Message.Chat.ID
-			// data := update.CallbackQuery.Data
-			// b.getUserState(chatID, update.CallbackQuery.Message.From)
-			// if data != bm.PilesSendExcel {
-			// 	b.processCallbackQuery(chatID, data)
-			// } else {
-			// 	callback := update.CallbackQuery
-			// 	b.processCallbackQueryWithAlert(chatID, data, callback)
-			// }
 		default:
 			continue
 		}
@@ -321,7 +311,7 @@ func (b *TgBot) getPileInfo(chatID int64, title string) string {
 		infoText = "Номер сваи: %s\n" +
 			"Статус: запись в журнале;\n" +
 			"Дата забивки: %s;\n" +
-			"Факт. отметка головы: %d;\n" +
+			"Факт. отметка верха головы: %d;\n" +
 			"Оператор: %s;\n"
 		infoText = fmt.Sprintf(infoText,
 			p.PileNumber,
