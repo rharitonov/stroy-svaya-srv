@@ -91,10 +91,14 @@ func (b *TgBot) showPilesMenu(chatID int64) {
 }
 
 func (b *TgBot) showPileOperationsMenu(chatID int64) {
-	kb := tgbotapi.NewInlineKeyboardMarkup(
-		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Запись в журнал", bm.PileOpsInsert),
-		),
+	var kb tgbotapi.InlineKeyboardMarkup
+	if b.userStates[chatID].currRec.Status == 10 {
+		kb = tgbotapi.NewInlineKeyboardMarkup(
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData("Запись в журнал", bm.PileOpsInsert)),
+		)
+	}
+	kb = tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Ввод/изм. ФОГ", bm.PileOpsUpdateFPH),
 		),
@@ -102,6 +106,18 @@ func (b *TgBot) showPileOperationsMenu(chatID int64) {
 			tgbotapi.NewInlineKeyboardButtonData("К выбору сваи", bm.PileOpsBack),
 		),
 	)
+
+	// kb := tgbotapi.NewInlineKeyboardMarkup(
+	// 	tgbotapi.NewInlineKeyboardRow(
+	// 		tgbotapi.NewInlineKeyboardButtonData("Запись в журнал", bm.PileOpsInsert),
+	// 	),
+	// 	tgbotapi.NewInlineKeyboardRow(
+	// 		tgbotapi.NewInlineKeyboardButtonData("Ввод/изм. ФОГ", bm.PileOpsUpdateFPH),
+	// 	),
+	// 	tgbotapi.NewInlineKeyboardRow(
+	// 		tgbotapi.NewInlineKeyboardButtonData("К выбору сваи", bm.PileOpsBack),
+	// 	),
+	// )
 	b.newInlineKb(chatID, &kb, "Доступные операции:")
 }
 
@@ -189,15 +205,18 @@ func (b *TgBot) processCommand(chatID int64, text string) {
 }
 
 func (b *TgBot) processUserInput(chatID int64, text string) {
-	switch text {
+	switch b.userStates[chatID].waitingFor {
+	case bm.WaitPileUpdateFPH:
+		b.onAfterPileUpdateFPH(chatID, text)
 	default:
-		b.sendMessage(chatID, "other")
+		b.sendMessage(chatID, fmt.Sprintf("Debug: %s, %s", b.userStates[chatID].waitingFor, text))
 	}
 }
 
 func (b *TgBot) processCallbackQuery(chatID int64, data string) {
 	switch data {
-	case bm.PilesAll,
+	case bm.PileOpsBack,
+		bm.PilesAll,
 		bm.PilesNew,
 		bm.PilesNoFPH,
 		bm.PilesLoggedToday,
@@ -210,12 +229,14 @@ func (b *TgBot) processCallbackQuery(chatID int64, data string) {
 		case bm.WaitPileOperation:
 			switch data {
 			case bm.PileOpsUpdateFPH:
-				b.OnBeforHandlePileUpdateFPH(chatID)
+				b.onBeforePileUpdateFPH(chatID)
 			case bm.PileOpsInsert:
-
+				b.insertOrUpdatePile(chatID)
 			}
 		case bm.WaitPileUpdateFPH:
-
+			b.onAfterPileUpdateFPH(chatID, data)
+		case bm.WaitPileStartDate:
+			b.onAfterStartDateSelect(chatID, data)
 		}
 	}
 }
@@ -278,14 +299,15 @@ func (b *TgBot) showPileInfo(chatID int64, title string) {
 			"Статус: запись в журнале;\n" +
 			"Дата забивки: %s;\n" +
 			"Факт. отметка головы: %d;\n" +
-			"Оператор: %s;\n" +
-			"Дата записи: %s;\n"
+			"Оператор: %s;"
 		infoText = fmt.Sprintf(infoText,
 			p.PileNumber,
 			p.StartDate.Format(time.DateOnly),
 			p.FactPileHead,
-			p.RecordedBy,
-			p.CreatedAt.Format(time.DateTime))
+			p.RecordedBy)
+		if !p.CreatedAt.IsZero() {
+			infoText = fmt.Sprintf("%s\nДата записи: %s;\n", infoText, p.CreatedAt.Format(time.DateTime))
+		}
 		if !p.UpdatedAt.IsZero() {
 			infoText = fmt.Sprintf("%s\nДата изм.: %s\n", infoText, p.UpdatedAt.Format(time.DateTime))
 		}
@@ -309,23 +331,38 @@ func (b *TgBot) onBeforePileUpdateFPH(chatID int64) {
 }
 
 func (b *TgBot) onAfterPileUpdateFPH(chatID int64, data string) {
-	p := b.userStates[chatID].currRec
 	num, err := strconv.Atoi(data)
 	if err != nil {
 		b.sendMessage(chatID, "Неверный формат ФОГ. Пожалуйста, введите значение (в мм ):")
 		return
 	}
-	p.FactPileHead = num
-	if p.StartDate.IsZero() {
-		b.showPileStartDateMenu(chatID)
-		b.userStates[chatID].waitingFor = bm.WaitPileStartDate
-		return
+	b.userStates[chatID].currRec.FactPileHead = num
+	b.insertOrUpdatePile(chatID)
+}
+
+func (b *TgBot) onAfterStartDateSelect(chatID int64, data string) {
+	sd := time.Now()
+	switch data {
+	case bm.PileOpsStartDateYesterday:
+		sd = time.Date(sd.Year(), sd.Month(), sd.Day()-1, 0, 0, 0, 0, time.UTC)
+	case bm.PileOpsStartDateToday:
+	default:
+		panic("start date selection error: nor today neither yesterday")
 	}
+	b.userStates[chatID].currRec.StartDate = sd
 	b.insertOrUpdatePile(chatID)
 }
 
 func (b *TgBot) insertOrUpdatePile(chatID int64) {
-
+	if b.userStates[chatID].currRec.StartDate.IsZero() {
+		b.showPileStartDateMenu(chatID)
+		b.userStates[chatID].waitingFor = bm.WaitPileStartDate
+		return
+	}
+	if err := b.ws.InsertOrUpdatePdrLine(&b.userStates[chatID].currRec); err != nil {
+		panic(err)
+	}
+	b.userStates[chatID].currRec.Status = 20
 	b.showPileInfo(chatID, "Данные сохранены:")
 }
 

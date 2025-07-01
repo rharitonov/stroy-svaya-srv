@@ -19,7 +19,7 @@ func NewHandler(s *service.Service) *Handler {
 	return &Handler{srv: s}
 }
 
-func (h *Handler) InsertPileDrivingRecordLine(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) InsertPdrLine(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -31,6 +31,24 @@ func (h *Handler) InsertPileDrivingRecordLine(w http.ResponseWriter, r *http.Req
 	}
 
 	if err := h.srv.InsertPileDrivingRecordLine(&rec); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func (h *Handler) InsertOrUpdatePdrLine(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var rec model.PileDrivingRecordLine
+	if err := json.NewDecoder(r.Body).Decode(&rec); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := h.srv.InsertOrUpdatePdrPile(&rec); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -53,7 +53,6 @@ func (r *SQLiteRepository) InsertPileDrivingRecordLine(rec *model.PileDrivingRec
 		rec.RecordedBy,
 	)
 	return err
-
 }
 
 func (r *SQLiteRepository) GetPileDrivingRecord(projectId int) ([]model.PileDrivingRecordLine, error) {
@@ -291,6 +290,56 @@ func (r *SQLiteRepository) GetPile(filter model.PileFilter) (*model.PileDrivingR
 
 	p.Status = 20
 	return p, nil
+}
+
+func (r *SQLiteRepository) InsertOrUpdatePdrPile(rec *model.PileDrivingRecordLine) error {
+	filter := model.PileFilter{}
+	filter.ProjectId = rec.ProjectId
+	filter.PileFieldId = rec.PileFieldId
+	filter.PileNumber = &rec.PileNumber
+	p, err := r.GetPile(filter)
+	if err != nil {
+		return err
+	}
+	query := ""
+	switch p.Status {
+	case 10:
+		query = `INSERT INTO pile_driving_record (
+				pile_field_id,
+				pile_number,
+				project_id,
+				start_date,
+				fact_pile_head,
+				recorded_by
+			)
+			VALUES (?, ?, ?, ?, ?, ?)`
+		_, err = r.db.Exec(query,
+			rec.PileFieldId,
+			rec.PileNumber,
+			rec.ProjectId,
+			rec.StartDate.Format(time.DateOnly),
+			rec.FactPileHead,
+			rec.RecordedBy,
+		)
+
+	case 20:
+		query = `UPDATE pile_driving_record
+				start_date = ?,
+				fact_pile_head = ?,
+				recorded_by = ?
+			WHERE project_id = ? and pile_field_id = ? and pile_number = ?`
+		_, err = r.db.Exec(query,
+			rec.StartDate.Format(time.DateOnly),
+			rec.FactPileHead,
+			rec.RecordedBy,
+			rec.ProjectId,
+			rec.PileFieldId,
+			rec.PileNumber)
+	default:
+		return fmt.Errorf("insert or update pile error")
+	}
+
+	return err
 }
 
 func (r *SQLiteRepository) GetUserFullNameInitialFormat(tgChatId int64) (string, error) {

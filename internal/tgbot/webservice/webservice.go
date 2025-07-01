@@ -114,6 +114,23 @@ func (w *WebService) SendData(rec *model.PileDrivingRecordLine) error {
 	return nil
 }
 
+func (w *WebService) InsertOrUpdatePdrLine(rec *model.PileDrivingRecordLine) error {
+	jsonData, err := json.Marshal(rec)
+	if err != nil {
+		return err
+	}
+	url := fmt.Sprintf("%s/insertorupdatepdrline", w.BaseUrl)
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		return errors.New(resp.Status)
+	}
+	return nil
+}
+
 func (w *WebService) getUrlValues(filter model.PileFilter) (string, error) {
 	jsonStr, err := json.Marshal(filter)
 	if err != nil {

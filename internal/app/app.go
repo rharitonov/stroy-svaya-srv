@@ -31,7 +31,8 @@ func New() (*App, error) {
 	a.h = handler.NewHandler(a.s)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /insertpdrline", a.h.InsertPileDrivingRecordLine)
+	mux.HandleFunc("POST /insertpdrline", a.h.InsertPdrLine)
+	mux.HandleFunc("POST /insertorupdatepdrline", a.h.InsertOrUpdatePdrLine)
 	mux.HandleFunc("GET /getpdrlines", a.h.GetPileDrivingRecord)
 	mux.HandleFunc("GET /getpilestodriving", a.h.GetPilesToDriving)
 	mux.HandleFunc("GET /getpiles", a.h.GetPiles)

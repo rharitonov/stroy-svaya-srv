@@ -157,6 +157,10 @@ func (s *Service) GetPile(filter model.PileFilter) (*model.PileDrivingRecordLine
 	return pile, nil
 }
 
+func (s *Service) InsertOrUpdatePdrPile(rec *model.PileDrivingRecordLine) error {
+	return s.repo.InsertOrUpdatePdrPile(rec)
+}
+
 func (s *Service) GetUserFullNameInitialFormat(tgChatId int64) (string, error) {
 	userName, err := s.repo.GetUserFullNameInitialFormat(tgChatId)
 	if err != nil {
