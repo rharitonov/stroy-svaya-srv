@@ -85,8 +85,8 @@ func (b *TgBot) showPilesMenu(chatID int64) {
 			tgbotapi.NewInlineKeyboardButtonData("Без ФОВГ", bm.PilesNoFPH),
 		),
 		tgbotapi.NewInlineKeyboardRow(
-			tgbotapi.NewInlineKeyboardButtonData("Забитые вчера", bm.PilesLoggedYesterday),
 			tgbotapi.NewInlineKeyboardButtonData("Забитые сегодня", bm.PilesLoggedToday),
+			tgbotapi.NewInlineKeyboardButtonData("Забитые вчера", bm.PilesLoggedYesterday),
 		),
 		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Получить Excel", bm.PilesSendExcel),
