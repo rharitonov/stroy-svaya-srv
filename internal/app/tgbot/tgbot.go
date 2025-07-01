@@ -61,15 +61,25 @@ func (b *TgBot) Run() error {
 			b.getUserState(chatID, update.Message.From)
 			b.processCommand(chatID, text)
 		case update.CallbackQuery != nil:
-			chatID := update.CallbackQuery.Message.Chat.ID
+			callback := update.CallbackQuery
+			chatID := callback.Message.Chat.ID
 			data := update.CallbackQuery.Data
-			b.getUserState(chatID, update.CallbackQuery.Message.From)
+			b.getUserState(chatID, callback.From)
 			if data != bm.PilesSendExcel {
 				b.processCallbackQuery(chatID, data)
 			} else {
-				callback := update.CallbackQuery
 				b.processCallbackQueryWithAlert(chatID, data, callback)
 			}
+
+			// chatID := update.CallbackQuery.Message.Chat.ID
+			// data := update.CallbackQuery.Data
+			// b.getUserState(chatID, update.CallbackQuery.Message.From)
+			// if data != bm.PilesSendExcel {
+			// 	b.processCallbackQuery(chatID, data)
+			// } else {
+			// 	callback := update.CallbackQuery
+			// 	b.processCallbackQueryWithAlert(chatID, data, callback)
+			// }
 		default:
 			continue
 		}
