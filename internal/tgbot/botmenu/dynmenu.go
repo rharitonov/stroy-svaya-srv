@@ -18,12 +18,17 @@ const (
 	PilesLoggedYesterday      = "PilesLoggedYesterday"
 	PilesLoggedToday          = "PilesLoggedToday"
 	PilesSendExcel            = "PilesSendExcel"
+	PileGetByNumber           = "PileGetByNumber"
 	PileOpsInsert             = "PileOpsInsert"
+	PileOpsInsertRange        = "PileOpsInsertRange"
 	PileOpsUpdateFPH          = "PileOpsUpdateFPH"
 	PileOpsStartDateToday     = "PileOpsStartDateToday"
 	PileOpsStartDateYesterday = "PileOpsStartDateYesterday"
 	PileOpsBack               = "PileOpsBack"
 	WaitPileNumber            = "WaitPileNumber"
+	WaitPileNumberInput       = "WaitPileNumberInput"
+	WaitPileNumberRangeFrom   = "WaitPileNumberRangeFrom"
+	WaitPileNumberRangeTo     = "WaitPileNumberRangeTo"
 	WaitPileOperation         = "WaitPileOperation"
 	WaitPileUpdateFPH         = "WaitPileUpdateFPH"
 	WaitPileStartDate         = "WaitPileStartDate"
@@ -44,6 +49,10 @@ func NewDynamicMenu(elements []string) *DynamicMenu {
 	return &DynamicMenu{allElements: elements}
 }
 
+func (dm *DynamicMenu) Contains(menuItem string) bool {
+	return slices.Contains(dm.allElements, menuItem)
+}
+
 func (dm *DynamicMenu) BuildMenuOrHandleSelection(param any) error {
 	switch p := param.(type) {
 	case []string:
@@ -59,7 +68,7 @@ func (dm *DynamicMenu) BuildMenuOrHandleSelection(param any) error {
 			dm.buildMenu(elements)
 			log.Printf("selected [..]")
 		} else {
-			if !slices.Contains(dm.allElements, p) {
+			if !dm.Contains(p) {
 				return errors.New("неверный номер. Пожалуйста, выберите из предложенных вариантов")
 			}
 			dm.TgBotMenuSingleItem = p

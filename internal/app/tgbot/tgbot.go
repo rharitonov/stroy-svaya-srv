@@ -14,11 +14,19 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type pileRange struct {
+	from model.PileDrivingRecordLine
+	to   model.PileDrivingRecordLine
+}
+
 type UserState struct {
-	currRec    model.PileDrivingRecordLine
-	currMenu   bm.DynamicMenu
-	userName   string
-	waitingFor string
+	currProjectID   int
+	currPileFieldID int
+	currRec         model.PileDrivingRecordLine
+	currRange       pileRange
+	currMenu        bm.DynamicMenu
+	userName        string
+	waitingFor      string
 }
 
 type TgBot struct {
@@ -80,6 +88,12 @@ func (b *TgBot) Run() error {
 func (b *TgBot) showPilesMenu(chatID int64) {
 	kb := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Выбрать сваю по номеру", bm.PileGetByNumber),
+		),
+		tgbotapi.NewInlineKeyboardRow(
+			tgbotapi.NewInlineKeyboardButtonData("Выбрать группу свай", bm.PileOpsInsertRange),
+		),
+		tgbotapi.NewInlineKeyboardRow(
 			tgbotapi.NewInlineKeyboardButtonData("Все сваи", bm.PilesAll),
 			tgbotapi.NewInlineKeyboardButtonData("Незабитые", bm.PilesNew),
 			tgbotapi.NewInlineKeyboardButtonData("Без ФОВГ", bm.PilesNoFPH),
@@ -96,29 +110,21 @@ func (b *TgBot) showPilesMenu(chatID int64) {
 }
 
 func (b *TgBot) showPileOperationsMenu(chatID int64) {
-	var kb tgbotapi.InlineKeyboardMarkup
-	if b.userStates[chatID].currRec.Status == 10 {
-		kb = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Запись в журнал", bm.PileOpsInsert),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Ввод/изм. ФОВГ", bm.PileOpsUpdateFPH),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("В главное меню", bm.PileOpsBack),
-			),
-		)
-	} else {
-		kb = tgbotapi.NewInlineKeyboardMarkup(
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("Ввод/изм. ФОВГ", bm.PileOpsUpdateFPH),
-			),
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData("В главное меню", bm.PileOpsBack),
-			),
-		)
+	baseRows := [][]tgbotapi.InlineKeyboardButton{
+		{
+			tgbotapi.NewInlineKeyboardButtonData("Ввод/изм. ФОВГ", bm.PileOpsUpdateFPH),
+		},
+		{
+			tgbotapi.NewInlineKeyboardButtonData("В главное меню", bm.PileOpsBack),
+		},
 	}
+	if b.userStates[chatID].currRec.Status == 10 {
+		extraRow := []tgbotapi.InlineKeyboardButton{
+			tgbotapi.NewInlineKeyboardButtonData("Запись в журнал", bm.PileOpsInsert),
+		}
+		baseRows = append([][]tgbotapi.InlineKeyboardButton{extraRow}, baseRows...)
+	}
+	kb := tgbotapi.NewInlineKeyboardMarkup(baseRows...)
 	b.newInlineKb(chatID, &kb, "Доступные операции:")
 }
 
@@ -147,10 +153,23 @@ func (b *TgBot) showAfterUpdatePdrLineMenu(chatID int64) {
 }
 
 func (b *TgBot) startPileSelection(chatID int64, mode string) {
+	piles, err := b.getPilesByFilter(chatID, mode)
+	if err != nil {
+		panic(err)
+	}
+	if len(piles) == 0 {
+		b.sendMessage(chatID, "Отсутствуют сваи заданным критериям")
+		return
+	}
+	b.userStates[chatID].currMenu = *bm.NewDynamicMenu(piles)
+	b.makePileSelectionMenu(chatID, "")
+	b.userStates[chatID].waitingFor = bm.WaitPileNumber
+}
+
+func (b *TgBot) getPilesByFilter(chatID int64, mode string) ([]string, error) {
 	b.userStates[chatID].waitingFor = ""
 	rec := model.PileDrivingRecordLine{}
-	rec.ProjectId = 1
-	rec.PileFieldId = 1
+	b.initPileWithCurrentPileField(chatID, &rec)
 	rec.RecordedBy = b.userStates[chatID].userName
 
 	b.userStates[chatID].currRec = rec
@@ -181,15 +200,9 @@ func (b *TgBot) startPileSelection(chatID int64, mode string) {
 	}
 	piles, err := b.ws.GetPiles(filter)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
-	if len(piles) == 0 {
-		b.sendMessage(chatID, "Отсутствуют сваи заданным критериям")
-		return
-	}
-	b.userStates[chatID].currMenu = *bm.NewDynamicMenu(piles)
-	b.makePileSelectionMenu(chatID, "")
-	b.userStates[chatID].waitingFor = bm.WaitPileNumber
+	return piles, nil
 }
 
 func (b *TgBot) newInlineKb(chatID int64, kb *tgbotapi.InlineKeyboardMarkup, text string) {
@@ -213,6 +226,8 @@ func (b *TgBot) processUserInput(chatID int64, text string) {
 	switch b.userStates[chatID].waitingFor {
 	case bm.WaitPileUpdateFPH:
 		b.onAfterPileUpdateFPH(chatID, text)
+	case bm.WaitPileNumberInput, bm.WaitPileNumberRangeFrom, bm.WaitPileNumberRangeTo:
+		b.onAfterPileNumberInput(chatID, text)
 	default:
 		b.sendMessage(chatID, fmt.Sprintf("Debug: %s, %s", b.userStates[chatID].waitingFor, text))
 	}
@@ -228,6 +243,8 @@ func (b *TgBot) processCallbackQuery(chatID int64, data string) {
 		b.startPileSelection(chatID, data)
 	case bm.PileOpsBack:
 		b.showPilesMenu(chatID)
+	case bm.PileGetByNumber, bm.PileOpsInsertRange:
+		b.onBeforePileNumberInput(chatID, data)
 	default:
 		switch b.userStates[chatID].waitingFor {
 		case bm.WaitPileNumber:
@@ -258,10 +275,13 @@ func (b *TgBot) getUserState(chatID int64, tgUser *tgbotapi.User) {
 	if _, ok := b.userStates[chatID]; !ok {
 		b.userStates[chatID] = &UserState{}
 	}
+	b.userStates[chatID].currProjectID = 1
+	b.userStates[chatID].currPileFieldID = 1
 	if b.userStates[chatID].userName == "" {
-		userName := fmt.Sprintf("%s %s",
+		userName := fmt.Sprintf("%s %s (%d)",
 			tgUser.FirstName,
-			tgUser.LastName)
+			tgUser.LastName,
+			chatID)
 		var err error
 		b.userStates[chatID].userName, err = b.ws.GetUserFullName(chatID, userName)
 		if err != nil {
@@ -287,6 +307,11 @@ func (b *TgBot) makePileSelectionMenu(chatID int64, data string) {
 	b.userStates[chatID].waitingFor = bm.WaitPileOperation
 }
 
+func (b *TgBot) initPileWithCurrentPileField(chatID int64, pile *model.PileDrivingRecordLine) {
+	pile.ProjectId = b.userStates[chatID].currProjectID
+	pile.PileFieldId = b.userStates[chatID].currPileFieldID
+}
+
 func (b *TgBot) updatePileRec(chatID int64, pile_no string) {
 	b.userStates[chatID].currRec.PileNumber = pile_no
 	filter := model.PileFilter{}
@@ -305,7 +330,7 @@ func (b *TgBot) getPileInfo(chatID int64, title string) string {
 	infoText := ""
 	switch p.Status {
 	case 10:
-		infoText = "Номер сваи: %s\nСтатус: план"
+		infoText = "Номер сваи: %s\nСтатус: нет записи в журнале"
 		infoText = fmt.Sprintf(infoText, p.PileNumber)
 	case 20:
 		infoText = "Номер сваи: %s\n" +
@@ -333,6 +358,50 @@ func (b *TgBot) getPileInfo(chatID int64, title string) string {
 
 func (b *TgBot) showPileInfo(chatID int64, title string) {
 	b.sendMessage(chatID, b.getPileInfo(chatID, title))
+}
+
+func (b *TgBot) onBeforePileNumberInput(chatID int64, data string) {
+	piles, err := b.getPilesByFilter(chatID, bm.PilesAll)
+	if err != nil {
+		panic(err)
+	}
+	if len(piles) == 0 {
+		b.sendMessage(chatID, "Отсутствуют сваи с заданными критериями")
+		return
+	}
+	b.userStates[chatID].currMenu = *bm.NewDynamicMenu(piles)
+	switch data {
+	case bm.PileGetByNumber:
+		b.userStates[chatID].waitingFor = bm.WaitPileNumberInput
+		b.sendMessage(chatID, "Введите номер сваи:")
+	case bm.PileOpsInsertRange:
+		b.userStates[chatID].waitingFor = bm.WaitPileNumberRangeFrom
+		b.sendMessage(chatID, "Введите номер первой и последней сваи в группе через пробел:")
+	}
+}
+
+func (b *TgBot) onAfterPileNumberInput(chatID int64, text string) {
+	if !b.userStates[chatID].currMenu.Contains(text) {
+		b.sendMessage(chatID, "Введенный номер сваи отсутствует в свайном поле. Введите номер еще раз:")
+		return
+	}
+	switch b.userStates[chatID].waitingFor {
+	case bm.WaitPileNumberInput:
+		b.updatePileRec(chatID, text)
+		b.showPileInfo(chatID, "Выбрана свая:")
+		b.showPileOperationsMenu(chatID)
+		b.userStates[chatID].waitingFor = bm.WaitPileOperation
+	case bm.WaitPileNumberRangeFrom:
+		b.initPileWithCurrentPileField(chatID, &b.userStates[chatID].currRange.from)
+		b.userStates[chatID].currRange.from.PileNumber = text
+		b.sendMessage(chatID, "Введите номер последней сваи в группе:")
+		b.userStates[chatID].waitingFor = bm.WaitPileNumberRangeTo
+	case bm.WaitPileNumberRangeTo:
+		b.initPileWithCurrentPileField(chatID, &b.userStates[chatID].currRange.to)
+		b.userStates[chatID].currRange.to.PileNumber = text
+		b.userStates[chatID].waitingFor = ""
+		b.sendMessage(chatID, fmt.Sprintf("введены свая от %s по %s", b.userStates[chatID].currRange.from.PileNumber, b.userStates[chatID].currRange.to.PileNumber))
+	}
 }
 
 func (b *TgBot) onBeforePileUpdateFPH(chatID int64) {
@@ -369,6 +438,7 @@ func (b *TgBot) onAfterStartDateSelect(chatID int64, data string) {
 	b.userStates[chatID].currRec.StartDate = sd
 	b.userStates[chatID].currRec.RecordedBy = b.userStates[chatID].userName
 	b.insertOrUpdatePile(chatID)
+	b.userStates[chatID].waitingFor = ""
 }
 
 func (b *TgBot) insertOrUpdatePile(chatID int64) {
@@ -382,6 +452,9 @@ func (b *TgBot) insertOrUpdatePile(chatID int64) {
 	}
 	b.userStates[chatID].currRec.Status = 20
 	b.showAfterUpdatePdrLineMenu(chatID)
+	var adminChatID int64 = 204729745
+	b.sendMessage(adminChatID,
+		fmt.Sprintf("chatID: %d; dt: %s; %v", chatID, time.Now().Format(time.DateTime), b.userStates[chatID].currRec))
 }
 
 func (b *TgBot) sendPdrLog(chatID int64, callback *tgbotapi.CallbackQuery) {
