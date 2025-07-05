@@ -44,13 +44,23 @@ func (s *Service) GetPileDrivingRecord(projectId int) ([]model.PileDrivingRecord
 	return lines, nil
 }
 
-func (s *Service) SendPileDrivingRecordLog(projectId int) error {
+func (s *Service) SendPileDrivingRecordLog(projectId int, tgChatId int64) error {
+	u, err := s.GetUserSetup(tgChatId)
+	if err != nil {
+		return err
+	}
+	if u == nil {
+		return fmt.Errorf("send pdr excel file error, user %d not found", tgChatId)
+	}
+	if u.Email == "" {
+		return fmt.Errorf("send pdr excel file error, user %d has no email", tgChatId)
+	}
 	filename, err := s.SavePileDrivingRecordLogToExcel(projectId)
 	if err != nil {
 		return err
 	}
 
-	if err := s.SendMail(filename); err != nil {
+	if err := s.SendMail(u.Email, filename); err != nil {
 		return err
 	}
 
@@ -94,42 +104,30 @@ func (s *Service) SavePileDrivingRecordLogToExcel(projectId int) (string, error)
 	return filename, nil
 }
 
-func (s *Service) SendMail(filename string) error {
+func (s *Service) SendMail(email string, filename string) error {
 	if err := godotenv.Load(); err != nil {
 		return fmt.Errorf("failed to load .env file: %w", err)
 	}
-
 	sender := os.Getenv("MAIL_SENDER")
 	password := os.Getenv("MAIL_SENDER_PASSWORD")
-	to := os.Getenv("MAIL_TO")
-	cc := os.Getenv("MAIL_CC")
-
-	if sender == "" || password == "" || to == "" {
+	if sender == "" || password == "" || email == "" {
 		return fmt.Errorf("missing required environment variables")
 	}
-
 	m := gomail.NewMessage()
 	m.SetHeader("From", sender)
-	m.SetHeader("To", to)
-	if cc != "" {
-		m.SetHeader("Cc", cc)
-	}
+	m.SetHeader("To", email)
 	m.SetHeader("Subject", "=?UTF-8?B?"+base64.StdEncoding.EncodeToString([]byte("Журнал забивки свай"))+"?=")
 	m.SetBody("text/plain", "см. вложение")
-
 	if filename != "" {
 		m.Attach(filename)
 		defer os.Remove(filename)
 	}
-
 	d := gomail.NewDialer("smtp.yandex.ru", 465, sender, password)
 	d.SSL = true
-
 	if err := d.DialAndSend(m); err != nil {
 		return fmt.Errorf("failed to send email: %w", err)
 	}
-
-	log.Printf("Excel file %s sent, To %s, Cc %s", filename, to, cc)
+	log.Printf("sending excel file %s sent, To %s, Cc %s", filename, email)
 	return nil
 }
 
@@ -161,10 +159,10 @@ func (s *Service) InsertOrUpdatePdrPile(rec *model.PileDrivingRecordLine) error 
 	return s.repo.InsertOrUpdatePdrPile(rec)
 }
 
-func (s *Service) GetUserFullNameInitialFormat(tgChatId int64) (string, error) {
-	userName, err := s.repo.GetUserFullNameInitialFormat(tgChatId)
+func (s *Service) GetUserSetup(tgChatID int64) (*model.User, error) {
+	u, err := s.repo.GetUserSetup(tgChatID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return userName, nil
+	return u, nil
 }

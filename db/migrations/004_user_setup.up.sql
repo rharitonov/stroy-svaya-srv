@@ -1,7 +1,7 @@
 -- up
 CREATE TABLE IF NOT EXISTS user_setup (
     code TEXT NOT NULL PRIMARY KEY,                 -- код сотрудника\шифр
-    name TEXT,                                      -- имя
+    first_name TEXT,                                -- имя
     last_name TEXT,                                 -- фамилия
     surname TEXT,                                   -- отчество
     initials TEXT,                                  -- инициалы

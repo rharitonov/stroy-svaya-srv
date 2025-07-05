@@ -27,11 +27,11 @@ const (
 	PileOpsBack               = "PileOpsBack"
 	WaitPileNumber            = "WaitPileNumber"
 	WaitPileNumberInput       = "WaitPileNumberInput"
-	WaitPileNumberRangeFrom   = "WaitPileNumberRangeFrom"
-	WaitPileNumberRangeTo     = "WaitPileNumberRangeTo"
+	WaitPileNumberRange       = "WaitPileNumberRange"
 	WaitPileOperation         = "WaitPileOperation"
 	WaitPileUpdateFPH         = "WaitPileUpdateFPH"
 	WaitPileStartDate         = "WaitPileStartDate"
+	WaitPilesRangeStartDate   = "WaitPilesRangeStartDate"
 )
 
 const (
@@ -51,6 +51,34 @@ func NewDynamicMenu(elements []string) *DynamicMenu {
 
 func (dm *DynamicMenu) Contains(menuItem string) bool {
 	return slices.Contains(dm.allElements, menuItem)
+}
+
+func (dm *DynamicMenu) IndexOf(elem string) int {
+	for i, n := range dm.allElements {
+		if elem == n {
+			return i
+		}
+	}
+	return -1
+}
+
+func (dm *DynamicMenu) GetRange(elemFrom string, elemTo string) ([]string, error) {
+	idxMin := dm.IndexOf(elemFrom)
+	if idxMin == -1 {
+		return nil, fmt.Errorf("%s is not found", elemFrom)
+	}
+	idxMax := dm.IndexOf(elemTo)
+	if idxMin == -1 {
+		return nil, fmt.Errorf("%s is not found", elemTo)
+	}
+	if idxMin > idxMax {
+		idxMax, idxMin = idxMin, idxMax
+	}
+	result := dm.allElements[idxMin : idxMax+1]
+	if len(result) == 0 {
+		return nil, fmt.Errorf("invalid range with start %s and end %s", elemFrom, elemTo)
+	}
+	return result, nil
 }
 
 func (dm *DynamicMenu) BuildMenuOrHandleSelection(param any) error {

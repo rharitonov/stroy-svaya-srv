@@ -17,6 +17,18 @@ type PileDrivingRecordLine struct {
 	Status       int       `json:"status"` // 10 - planned, 20 - logged, 30 - all, 40 -approved
 }
 
+type User struct {
+	Code      string    `json:"code"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	Surname   string    `json:"surname"`
+	Initials  string    `json:"initials"`
+	TgUserId  int64     `json:"tg_user_id"`
+	Email     string    `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type PileFilter struct {
 	ProjectId    int        `json:"project_id,omitempty"`
 	PileNumber   *string    `json:"pile_number,omitempty"`

@@ -344,26 +344,33 @@ func (r *SQLiteRepository) InsertOrUpdatePdrPile(rec *model.PileDrivingRecordLin
 	return err
 }
 
-func (r *SQLiteRepository) GetUserFullNameInitialFormat(tgChatId int64) (string, error) {
-	var lastName, initials string
-	query := `select last_name, initials 
+func (r *SQLiteRepository) GetUserSetup(tgChatID int64) (*model.User, error) {
+	var u *model.User = new(model.User)
+	query := `select 
+	    code, 
+    	first_name,
+    	last_name, 
+    	surname, 
+    	initials,
+    	tg_user_id,
+    	email
 		from user_setup 
-		where tg_user_id = ?
-		limit 1;`
-	rows, err := r.db.Query(query, tgChatId)
+		where tg_user_id = ?;`
+	err := r.db.QueryRow(query, tgChatID).Scan(
+		u.Code,
+		u.FirstName,
+		u.LastName,
+		u.Surname,
+		u.Initials,
+		u.TgUserId,
+		u.Email)
 	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		if err := rows.Scan(&lastName, &initials); err != nil {
-			return "", err
+		if err == sql.ErrNoRows {
+			return nil, nil
 		}
+		return nil, err
 	}
-	if lastName == "" {
-		return "", nil
-	}
-	return fmt.Sprintf("%s %s", lastName, initials), nil
+	return u, nil
 }
 
 func (r *SQLiteRepository) Close() error {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"stroy-svaya/internal/model"
@@ -76,25 +77,23 @@ func (w *WebService) SendExcel(projectId int) error {
 	return nil
 }
 
-func (w *WebService) GetUserFullName(chatId int64, defaultUserName string) (string, error) {
-	result := ""
-	url := fmt.Sprintf("%s/getuserfullname?tg_chat_id=%d", w.BaseUrl, chatId)
+func (w *WebService) GetUserSetup(chatId int64) (*model.User, error) {
+	url := fmt.Sprintf("%s/getusersetup?tg_chat_id=%d", w.BaseUrl, chatId)
 	resp, err := http.Get(url)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return result, err
+		return nil, err
 	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return "", err
+	log.Println("GetUserSetup body", string(body)) //DBG
+	var user *model.User = new(model.User)
+	if err := json.Unmarshal(body, user); err != nil {
+		return nil, err
 	}
-	if result == "" {
-		result = defaultUserName
-	}
-	return result, nil
+	return user, nil
 }
 
 func (w *WebService) SendData(rec *model.PileDrivingRecordLine) error {

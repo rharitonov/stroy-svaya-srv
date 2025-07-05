@@ -2,7 +2,7 @@ package main
 
 import (
 	"log"
-	"stroy-svaya/internal/app"
+	app "stroy-svaya/internal/app/stroy-svaya"
 )
 
 func main() {
