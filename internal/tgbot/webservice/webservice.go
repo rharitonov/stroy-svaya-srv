@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"stroy-svaya/internal/model"
@@ -88,7 +87,6 @@ func (w *WebService) GetUserSetup(chatId int64) (*model.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Println("GetUserSetup body", string(body)) //DBG
 	var user *model.User = new(model.User)
 	if err := json.Unmarshal(body, user); err != nil {
 		return nil, err

@@ -345,7 +345,7 @@ func (r *SQLiteRepository) InsertOrUpdatePdrPile(rec *model.PileDrivingRecordLin
 }
 
 func (r *SQLiteRepository) GetUserSetup(tgChatID int64) (*model.User, error) {
-	var u *model.User = new(model.User)
+	u := new(model.User)
 	query := `select 
 	    code, 
     	first_name,
@@ -357,13 +357,13 @@ func (r *SQLiteRepository) GetUserSetup(tgChatID int64) (*model.User, error) {
 		from user_setup 
 		where tg_user_id = ?;`
 	err := r.db.QueryRow(query, tgChatID).Scan(
-		u.Code,
-		u.FirstName,
-		u.LastName,
-		u.Surname,
-		u.Initials,
-		u.TgUserId,
-		u.Email)
+		&u.Code,
+		&u.FirstName,
+		&u.LastName,
+		&u.Surname,
+		&u.Initials,
+		&u.TgUserId,
+		&u.Email)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
