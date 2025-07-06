@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
 	"os"
 	"stroy-svaya/internal/model"
 	"stroy-svaya/internal/repository"
@@ -97,7 +96,6 @@ func (s *Service) SavePileDrivingRecordLogToExcel(projectId int) (string, error)
 	filename := fmt.Sprintf("reports/p%d_журнал-забивки-свай-от_%s.xlsx",
 		projectId,
 		printoutDate.Format("20060102_150405"))
-	log.Println("filname", filename)
 	err = file.Save(filename)
 	if err != nil {
 		panic(err)
@@ -128,7 +126,7 @@ func (s *Service) SendMail(email string, filename string) error {
 	if err := d.DialAndSend(m); err != nil {
 		return fmt.Errorf("failed to send email: %w", err)
 	}
-	log.Printf("sending excel file %s, to %s", filename, email)
+	//log.Printf("sending excel file %s, to %s", filename, email) //DBG
 	return nil
 }
 
