@@ -13,7 +13,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal("Использование: migrate up|down")
+		log.Fatal("usage: migrate up|down")
 	}
 	cfg := config.Load()
 
@@ -24,23 +24,23 @@ func main() {
 	)
 
 	if err != nil {
-		log.Fatalf("Ошибка создания мигратора: %v", err)
+		log.Fatalf("migrate error: %v", err)
 	}
 
 	switch action {
 	case "up":
 		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-			log.Fatalf("Ошибка применения миграции: %v", err)
+			log.Fatalf("migration applying error: %v", err)
 		}
-		fmt.Println("✅ Миграции применены")
+		fmt.Println("✅ migration applied")
 
 	case "down":
 		if err := m.Down(); err != nil && err != migrate.ErrNoChange {
-			log.Fatalf("Ошибка отката миграции: %v", err)
+			log.Fatalf("migration rollback error: %v", err)
 		}
-		fmt.Println("🔄 Миграции откачены")
+		fmt.Println("🔄 migration rolled back")
 
 	default:
-		log.Fatal("Неизвестная команда:", action)
+		log.Fatal("Unknown parameter:", action)
 	}
 }
