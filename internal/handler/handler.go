@@ -84,7 +84,7 @@ func (h *Handler) GetPileDrivingRecord(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) SendPileDrivingRecordLog(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SendPdrLog(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return

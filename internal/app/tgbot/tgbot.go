@@ -299,6 +299,7 @@ func (b *TgBot) getUserState(chatID int64, tgUser *tgbotapi.User) {
 			u.FirstName = tgUser.FirstName
 			u.Initials = tgUser.FirstName
 			u.TgUserId = chatID
+			b.debugPrint(fmt.Sprintf("hello new user: %v", u))
 		}
 		b.userStates[chatID].user = *u
 		b.userStates[chatID].userName = fmt.Sprintf("%s %s", u.LastName, u.Initials)
@@ -535,7 +536,7 @@ func (b *TgBot) onAfterPilesRangeStartDateSelect(chatID int64, data string) {
 	}
 	b.sendMessage(chatID, fmt.Sprintf("Данные по %d сваям были успешно записаны в журнал", len(piles)))
 	b.userStates[chatID].waitingFor = ""
-	b.debugPrint(fmt.Sprintf("range insert. chatID: %d; dt: %s; %s", chatID, time.Now().Format(time.DateTime), b.userStates[chatID].userName))
+	b.debugPrint(fmt.Sprintf("range inserted. chatID: %d; %s", chatID, b.userStates[chatID].userName))
 }
 
 func (b *TgBot) makeStartDate(data string) time.Time {
@@ -561,16 +562,16 @@ func (b *TgBot) insertOrUpdatePile(chatID int64) {
 	}
 	b.userStates[chatID].pdrRec.Status = 20
 	b.showAfterUpdatePdrLineMenu(chatID)
-	b.debugPrint(fmt.Sprintf("pile ops.chatID: %d; dt: %s; %v", chatID, time.Now().Format(time.DateTime), b.userStates[chatID].pdrRec))
+	b.debugPrint(fmt.Sprintf("pile inserted/updated. chatID: %d; %v", chatID, b.userStates[chatID].pdrRec))
 }
 
 func (b *TgBot) sendPdrLog(chatID int64, callback *tgbotapi.CallbackQuery) {
-	b.debugPrint(fmt.Sprintf("excel send.chatID: %d; dt: %s; %s", chatID, time.Now().Format(time.DateTime), b.userStates[chatID].userName))
+	b.debugPrint(fmt.Sprintf("sending excel. chatID: %d; %s", chatID, b.userStates[chatID].userName))
 	if b.userStates[chatID].user.Email == "" {
 		b.createAlert(callback, "Отправка файла Excel журнала возможна только для зарегестрированных пользователей. Обратитесь к администратору.")
 		return
 	}
-	if err := b.ws.SendPdrLog(b.userStates[chatID].pdrRec.ProjectId); err != nil {
+	if err := b.ws.SendPdrLog(b.userStates[chatID].pdrRec.ProjectId, chatID); err != nil {
 		panic(err)
 	}
 	b.createAlert(callback, "Файл Excel отправлен на рабочий email")
@@ -597,7 +598,7 @@ func (b *TgBot) debugPrint(text string) {
 	if b.debugChatId == 0 {
 		return
 	}
-	b.sendMessage(b.debugChatId, text)
+	b.sendMessage(b.debugChatId, fmt.Sprintf("%s>> %s", time.Now().Format(time.DateTime), text))
 }
 
 func (b *TgBot) setDebug(debugMode bool) {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"stroy-svaya/internal/model"
@@ -66,8 +67,9 @@ func (w *WebService) GetPile(filter model.PileFilter) (*model.PileDrivingRecordL
 	return &pile, nil
 }
 
-func (w *WebService) SendExcel(projectId int) error {
-	url := fmt.Sprintf("%s/sendpdrlog?project_id=%d", w.BaseUrl, projectId)
+func (w *WebService) SendPdrLog(projectId int, chatId int64) error {
+	url := fmt.Sprintf("%s/sendpdrlog?project_id=%d&tg_chat_id=%d", w.BaseUrl, projectId, chatId)
+	log.Println(url) // BDG
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -125,19 +127,6 @@ func (w *WebService) InsertOrUpdatePdrLine(rec *model.PileDrivingRecordLine) err
 	if resp.StatusCode != http.StatusCreated {
 		return errors.New(resp.Status)
 	}
-	return nil
-}
-
-func (w *WebService) SendPdrLog(projectId int) error {
-	if projectId == 0 {
-		projectId = 1
-	}
-	url := fmt.Sprintf("%s/sendpdrlog?project_id=%d", w.BaseUrl, projectId)
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
 	return nil
 }
 

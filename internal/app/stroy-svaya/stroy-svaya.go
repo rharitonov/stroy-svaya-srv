@@ -37,7 +37,7 @@ func New() (*App, error) {
 	mux.HandleFunc("GET /getpilestodriving", a.h.GetPilesToDriving)
 	mux.HandleFunc("GET /getpiles", a.h.GetPiles)
 	mux.HandleFunc("GET /getpile", a.h.GetPile)
-	mux.HandleFunc("GET /sendpdrlog", a.h.SendPileDrivingRecordLog)
+	mux.HandleFunc("GET /sendpdrlog", a.h.SendPdrLog)
 	mux.HandleFunc("GET /getusersetup", a.h.GetUserSetup)
 
 	a.srv = &http.Server{
