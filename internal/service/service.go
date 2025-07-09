@@ -91,7 +91,12 @@ func (s *Service) SavePileDrivingRecordLogToExcel(projectId int) (string, error)
 		row.AddCell().Value = fmt.Sprintf("%d", ln.FactPileHead)
 		row.AddCell().Value = ln.RecordedBy
 	}
-
+	if _, err := os.Stat("reports"); os.IsNotExist(err) {
+		err := os.Mkdir("reports", 0755)
+		if err != nil {
+			panic(err)
+		}
+	}
 	printoutDate := time.Now()
 	filename := fmt.Sprintf("reports/p%d_журнал-забивки-свай-от_%s.xlsx",
 		projectId,
