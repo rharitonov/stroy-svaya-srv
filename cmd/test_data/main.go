@@ -14,7 +14,7 @@ type TestRec struct {
 	pile_field_id       int
 	pile_number         string
 	pile_no             int
-	pile_type           string
+	pile_code           string
 	design_pile_head    float32
 	design_pile_tip     float32
 	pile_x_coord_points []int
@@ -31,7 +31,7 @@ func NewTextRec(max_x_coord int, max_y_coord int) *TestRec {
 	for i := 0; i < max_y_coord; i++ {
 		t.pile_y_coord_points[i] = i + 1
 	}
-	t.pile_type = "С140.40-11.1"
+	t.pile_code = "С140.40-11.1"
 	t.design_pile_head = 9900
 	t.design_pile_tip = -4100
 	return &t
@@ -56,9 +56,23 @@ func main() {
 		panic(err.Error())
 	}
 
-	query := `INSERT INTO project (code, name, address, parent_project_id, start_date, end_date)
+	// item
+	query := "INSERT INTO item (code, description, weight) VALUES (?, ?, ?)"
+	result, err := db.Exec(query, "С140.40-11.1", "Свая ж/б С140.40-11.1", 5600)
+	if err != nil {
+		panic(err)
+	}
+
+	query = "INSERT INTO equip (code, description, unit_type, unit_weight, unit_power)" +
+		" VALUES (?, ?, ?, ?, ?)"
+	result, err = db.Exec(query, "ЮНТТАН", "Юнттан", "Гидравлический", 7000, 84)
+	if err != nil {
+		panic(err)
+	}
+
+	query = `INSERT INTO project (code, name, address, parent_project_id, start_date, end_date)
 		VALUES(?, ?, ?, ?, ?, ?)`
-	result, err := db.Exec(query,
+	result, err = db.Exec(query,
 		"99/2025-АМЦ-3-КЖ01",
 		"Многоквартирный жилой дом со встроенным подземным гаражом",
 		"г. Санкт-Петеребург, муниципальный округ Финляндский округ, Полюстровский проспект, участок 31",
@@ -82,7 +96,7 @@ func main() {
 	}
 	id2, err = result.LastInsertId()
 	if err != nil {
-		panic("Oops Get pile_field Id")
+		panic(err)
 	}
 	tr.pile_field_id = int(id2)
 
@@ -90,7 +104,7 @@ func main() {
 	query = `INSERT INTO  pile_in_field (
     	pile_field_id,
     	pile_number,
-    	pile_type,
+    	pile_code,
     	x_coord,
     	y_coord,
     	design_pile_head,
@@ -103,7 +117,7 @@ func main() {
 			result, err = db.Exec(query,
 				tr.pile_field_id,
 				tr.pile_number,
-				tr.pile_type,
+				tr.pile_code,
 				fmt.Sprintf("%dа", x),
 				fmt.Sprintf("%dб", y),
 				tr.design_pile_head,

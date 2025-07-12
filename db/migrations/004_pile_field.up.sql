@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS pile_in_field (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     pile_field_id INTEGER NOT NULL,         -- ID свайного поля
     pile_number TEXT NOT NULL,              -- Номер сваи (может быть буквенно-цифровым)
-    pile_type TEXT,                         -- Тип сваи по проекту
+    pile_code TEXT,                         -- Тип сваи по проекту
     x_coord TEXT,                           -- Координата X
     y_coord TEXT,                           -- Координата Y
     z_coord TEXT,                           -- Координата Z (если нужна)
@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS pile_in_field (
     design_pile_tip INTEGER,                -- Абс. отметка острия сваи по проекту, мм
 
     FOREIGN KEY (pile_field_id) REFERENCES pile_field(id),
+    FOREIGN KEY (pile_code) REFERENCES item(code),
     UNIQUE (pile_field_id, pile_number)     -- Уникальный номер сваи в пределах поля
 );
 

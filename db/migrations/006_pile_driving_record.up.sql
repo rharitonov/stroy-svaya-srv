@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS pile_driving_record (
     end_date DATE,                                  -- Дата окончания забивки
     fact_pile_head INTEGER                          -- Абс. отметка верха головы сваи, факт, мм
     blows_count INTEGER,                            -- Количество ударов
+    equip_code TEXT,                                -- молот
     recorded_by INTEGER NOT NULL,                   -- ID оператора/инженера
     notes TEXT,                                     -- Дополнительные заметки
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,  -- Дата создания записи
@@ -15,7 +16,8 @@ CREATE TABLE IF NOT EXISTS pile_driving_record (
     
     UNIQUE (project_id, pile_field_id, pile_number),        -- Уникальный номер сваи в пределах поля проекта
     FOREIGN KEY (project_id) REFERENCES project(id),        -- Связь с таблицей проектов
-    FOREIGN KEY (pile_field_id) REFERENCES pile_field(id)   
+    FOREIGN KEY (pile_field_id) REFERENCES pile_field(id),
+    FOREIGN KEY (equip_code) REFERENCES equip(code)      
 );
 
 CREATE INDEX IF NOT EXISTS idx_pile_driving_pile_number ON pile_driving_record(pile_number);
