@@ -5,6 +5,17 @@ import (
 	"time"
 )
 
+type Project struct {
+	Id              int64     `json:"id"`
+	Code            string    `json:"code"`
+	Name            string    `json:"name"`
+	Address         string    `json:"address"`
+	ParentProjectId int64     `json:"parent_project_id"`
+	StartDate       time.Time `json:"start_date"`
+	EndDate         time.Time `json:"end_date"`
+	Status          string    `json:"status"`
+}
+
 type PileDrivingRecordLine struct {
 	ProjectId    int       `json:"project_id"`
 	PileNumber   string    `json:"pile_number"`
@@ -37,6 +48,17 @@ type PileFilter struct {
 	FactPileHead *int       `json:"fact_pile_head,omitempty"`
 	RecordedBy   *string    `json:"recorded_by,omitempty"`
 	Status       int        `json:"status,omitempty"` // 10 - planned, 20 - logged, 30 - all, 40 -approved
+}
+
+type Equip struct {
+	Code        string    `json:"code"`
+	Description string    `json:"Description"`
+	Type        string    `json:"type"`
+	UnitType    string    `json:"unit_type"`
+	UnitWeight  int64     `json:"unit_weight"`
+	UnitPower   int64     `json:"unit_power"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func (p PileDrivingRecordLine) String() string {

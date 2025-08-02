@@ -10,6 +10,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/tealeg/xlsx"
+	"github.com/xuri/excelize/v2"
 	"gopkg.in/gomail.v2"
 )
 
@@ -64,6 +65,89 @@ func (s *Service) SendPileDrivingRecordLog(projectId int, tgChatId int64) error 
 	}
 
 	return nil
+}
+
+func (s *Service) GetProject(projectId int64) (*model.Project, error) {
+	p, err := s.repo.GetProject(projectId)
+	if err != nil {
+		panic(err)
+	}
+	return p, nil
+}
+
+func (s *Service) ExportPdrToExcel(projectId int) (string, error) {
+
+	f, err := excelize.OpenFile("templates/xlsx/pdr.xlsx")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	sheet := "Журнал"
+
+	{
+		company_info, err := s.repo.GetCompanyName()
+		if err != nil {
+			panic(fmt.Errorf("company name: %w", err))
+		}
+		f.SetCellValue(sheet, "C1", company_info)
+	}
+
+	// project
+	{
+		p, err := s.repo.GetProject(int64(projectId))
+		if err != nil {
+			panic(err)
+		}
+		f.SetCellValue(sheet, "C3", p.Name)
+		f.SetCellValue(sheet, "C5", p.Address)
+		f.SetCellValue(sheet, "P14", p.StartDate)
+		f.SetCellValue(sheet, "C18", p.StartDate)
+		f.SetCellValue(sheet, "P15", p.EndDate)
+		f.SetCellValue(sheet, "H18", p.EndDate)
+	}
+
+	equip := make(map[string]model.Equip)
+	{
+		equips, err := s.repo.GetPdrEquip(int64(projectId))
+		if err != nil {
+			panic(err)
+		}
+		var kopr, hummer, weight, power string
+		for _, e := range equips {
+			equip[e.Code] = e
+			if len(kopr) != 0 {
+				kopr += ","
+			}
+			kopr += e.Description
+			if len(hummer) != 0 {
+				hummer += ","
+			}
+			hummer += e.UnitType
+			if len(weight) != 0 {
+				weight += ","
+			}
+			weight += fmt.Sprintf("%d", e.UnitWeight)
+			if len(power) != 0 {
+				power += ","
+			}
+			power += fmt.Sprintf("%d", e.UnitPower)
+		}
+
+		f.SetCellValue(sheet, "F20", kopr)
+		f.SetCellValue(sheet, "F21", hummer)
+		f.SetCellValue(sheet, "F22", weight)
+		f.SetCellValue(sheet, "F23", power)
+	}
+
+	printoutDate := time.Now()
+	filename := fmt.Sprintf("reports/p%d_журнал-забивки-свай-от_%s.xlsx",
+		projectId,
+		printoutDate.Format("20060102_150405"))
+	if err := f.SaveAs(filename); err != nil {
+		panic(err)
+	}
+	return filename, nil
 }
 
 func (s *Service) SavePileDrivingRecordLogToExcel(projectId int) (string, error) {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"stroy-svaya/internal/config"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -46,6 +47,7 @@ func main() {
 	cfg := config.Load()
 	var db *sql.DB
 	var err error
+	var result sql.Result
 	tr := NewTextRec(20, 20)
 
 	db, err = sql.Open("sqlite", cfg.DatabasePath)
@@ -58,18 +60,24 @@ func main() {
 
 	// item
 	query := "INSERT INTO item (code, description, weight) VALUES (?, ?, ?)"
-	result, err := db.Exec(query, "С140.40-11.1", "Свая ж/б С140.40-11.1", 5600)
+	_, err = db.Exec(query, "С140.40-11.1", "Свая ж/б С140.40-11.1", 5600)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("item: %v", err))
 	}
 
-	query = "INSERT INTO equip (code, description, unit_type, unit_weight, unit_power)" +
-		" VALUES (?, ?, ?, ?, ?)"
-	result, err = db.Exec(query, "ЮНТТАН", "Юнттан", "Гидравлический", 7000, 84)
+	// equip
+	query = "INSERT INTO equip (code, description, unit_type, unit_model, unit_weight, unit_power)" +
+		" VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)"
+	_, err = db.Exec(query,
+		"ЮНТТАН-25", "Юнттан PM25HD", "Гидравлический", "HHK7", 7000, 84,
+		"ЮНТТАН-20", "Юнттан PM20LC", "Гидравлический", "HHK5AL", 5000, 60)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("equip: %v", err))
 	}
 
+	// project
+	sd := time.Date(2025, 05, 01, 0, 0, 0, 0, time.UTC)
+	ed := time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC)
 	query = `INSERT INTO project (code, name, address, parent_project_id, start_date, end_date)
 		VALUES(?, ?, ?, ?, ?, ?)`
 	result, err = db.Exec(query,
@@ -77,14 +85,14 @@ func main() {
 		"Многоквартирный жилой дом со встроенным подземным гаражом",
 		"г. Санкт-Петеребург, муниципальный округ Финляндский округ, Полюстровский проспект, участок 31",
 		0,
-		"2025-05-01",
-		"2025-10-31")
+		sd.Format(time.DateOnly),
+		ed.Format(time.DateOnly))
 	if err != nil {
-		panic(err.Error())
+		panic(fmt.Errorf("project: %v", err))
 	}
 	id2, err := result.LastInsertId()
 	if err != nil {
-		panic(err.Error())
+		panic(fmt.Errorf("project: %v", err))
 	}
 	tr.project_id = int(id2)
 
@@ -92,16 +100,16 @@ func main() {
 	query = "INSERT INTO pile_field (project_id, name, drawing_number) VALUES (?, ?, ?)"
 	result, err = db.Exec(query, tr.project_id, "Секция 1", "Чертеж01")
 	if err != nil {
-		panic("Oops insert pile_field")
+		panic(fmt.Errorf("pile_field: %v", err))
 	}
 	id2, err = result.LastInsertId()
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("pile_field: %v", err))
 	}
 	tr.pile_field_id = int(id2)
 
 	// pile_in_field
-	query = `INSERT INTO  pile_in_field (
+	query = `INSERT INTO pile_in_field (
     	pile_field_id,
     	pile_number,
     	pile_code,
@@ -110,11 +118,10 @@ func main() {
     	design_pile_head,
     	design_pile_tip
 		) VALUES (?, ?, ?, ?, ?, ?, ?)`
-
 	for _, x := range tr.pile_x_coord_points {
 		for _, y := range tr.pile_y_coord_points {
 			tr.GetNextPileNumber()
-			result, err = db.Exec(query,
+			_, err = db.Exec(query,
 				tr.pile_field_id,
 				tr.pile_number,
 				tr.pile_code,
@@ -124,9 +131,16 @@ func main() {
 				tr.design_pile_tip,
 			)
 			if err != nil {
-				panic("Oops pile_in_field")
+				panic(fmt.Errorf("pile_in_field: %v", err))
 			}
 		}
+	}
+
+	// company_info
+	query = "INSERT INTO company_info (code, name) VALUES (?, ?)"
+	_, err = db.Exec(query, "", "ООО \"Строй Свая\"")
+	if err != nil {
+		panic(fmt.Errorf("company_info: %v", err))
 	}
 
 	log.Print("Test data was created")

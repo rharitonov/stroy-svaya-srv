@@ -200,6 +200,36 @@ func (r *SQLiteRepository) GetPiles(filter model.PileFilter) ([]string, error) {
 	return pileNos, nil
 }
 
+func (r *SQLiteRepository) GetCompanyName() (string, error) {
+	var company_name string
+	query := "select name from company_info where code = ''"
+	err := r.db.QueryRow(query).Scan(&company_name)
+	if err != nil {
+		return "", err
+	}
+	return company_name, nil
+}
+
+func (r *SQLiteRepository) GetProject(projectId int64) (*model.Project, error) {
+	p := new(model.Project)
+	query := "select id, code, name, address, parent_project_id, start_date, end_date, status " +
+		"from project where id = ?"
+	err := r.db.QueryRow(query, projectId).Scan(
+		&p.Id,
+		&p.Code,
+		&p.Name,
+		&p.Address,
+		&p.ParentProjectId,
+		&p.StartDate,
+		&p.EndDate,
+		&p.Status)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project: %w", err)
+	}
+
+	return p, nil
+}
+
 func (r *SQLiteRepository) GetPile(filter model.PileFilter) (*model.PileDrivingRecordLine, error) {
 	p := &model.PileDrivingRecordLine{}
 	p.ProjectId = filter.ProjectId
@@ -289,6 +319,28 @@ func (r *SQLiteRepository) GetPile(filter model.PileFilter) (*model.PileDrivingR
 
 	p.Status = 20
 	return p, nil
+}
+
+func (r *SQLiteRepository) GetPdrEquip(projectId int64) ([]model.Equip, error) {
+	var equips []model.Equip
+	query := `SELECT e.code, e.description, e.type, e.unit_type, e.unit_weight, e.unit_power
+		FROM equip e
+		INNER JOIN (	
+			SELECT equip_code FROM pile_driving_record WHERE project_id = ? GROUP BY equip_code
+		) pe on pe.equip_code = e.code`
+	rows, err := r.db.Query(query, projectId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var e model.Equip
+		if err := rows.Scan(&e.Code, &e.Description, &e.Type, &e.UnitType, &e.UnitWeight, &e.UnitPower); err != nil {
+			return nil, err
+		}
+		equips = append(equips, e)
+	}
+	return equips, nil
 }
 
 func (r *SQLiteRepository) InsertOrUpdatePdrPile(rec *model.PileDrivingRecordLine) error {
