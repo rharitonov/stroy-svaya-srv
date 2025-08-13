@@ -32,9 +32,9 @@ func NewTextRec(max_x_coord int, max_y_coord int) *TestRec {
 	for i := 0; i < max_y_coord; i++ {
 		t.pile_y_coord_points[i] = i + 1
 	}
-	t.pile_code = "С140.40-11.1"
-	t.design_pile_head = 9900
-	t.design_pile_tip = -4100
+	t.pile_code = "С90.30-3"
+	t.design_pile_head = 11680
+	t.design_pile_tip = 0
 	return &t
 }
 
@@ -48,7 +48,7 @@ func main() {
 	var db *sql.DB
 	var err error
 	var result sql.Result
-	tr := NewTextRec(20, 20)
+	tr := NewTextRec(1, 251)
 
 	db, err = sql.Open("sqlite", cfg.DatabasePath)
 	if err != nil {
@@ -59,8 +59,8 @@ func main() {
 	}
 
 	// item
-	query := "INSERT INTO item (code, description, weight) VALUES (?, ?, ?)"
-	_, err = db.Exec(query, "С140.40-11.1", "Свая ж/б С140.40-11.1", 5600)
+	query := "INSERT INTO item (code, description, weight) VALUES (?, ?, ?), (?, ?, ?)"
+	_, err = db.Exec(query, "С140.40-11.1", "Свая ж/б С140.40-11.1", 5600, "С90.30-3", "Свая ж/б С90.30-3", 2030)
 	if err != nil {
 		panic(fmt.Errorf("item: %v", err))
 	}
@@ -76,14 +76,14 @@ func main() {
 	}
 
 	// project
-	sd := time.Date(2025, 05, 01, 0, 0, 0, 0, time.UTC)
-	ed := time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC)
+	sd := time.Date(2025, 8, 1, 0, 0, 0, 0, time.UTC)
+	ed := time.Date(2025, 8, 31, 0, 0, 0, 0, time.UTC)
 	query = `INSERT INTO project (code, name, address, parent_project_id, start_date, end_date)
 		VALUES(?, ?, ?, ?, ?, ?)`
 	result, err = db.Exec(query,
-		"99/2025-АМЦ-3-КЖ01",
-		"Многоквартирный жилой дом со встроенным подземным гаражом",
-		"г. Санкт-Петеребург, муниципальный округ Финляндский округ, Полюстровский проспект, участок 31",
+		"ЧЕРЕП",
+		"Цех котонизации",
+		"г. Череповец",
 		0,
 		sd.Format(time.DateOnly),
 		ed.Format(time.DateOnly))
@@ -98,7 +98,7 @@ func main() {
 
 	// pile_field
 	query = "INSERT INTO pile_field (project_id, name, drawing_number) VALUES (?, ?, ?)"
-	result, err = db.Exec(query, tr.project_id, "Секция 1", "Чертеж01")
+	result, err = db.Exec(query, tr.project_id, "", "")
 	if err != nil {
 		panic(fmt.Errorf("pile_field: %v", err))
 	}
